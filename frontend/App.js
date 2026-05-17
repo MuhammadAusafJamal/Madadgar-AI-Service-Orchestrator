@@ -22,7 +22,7 @@ export default function App() {
   const splashScreenTimeout = () => {
     setTimeout(() => {
       setIsSplashFinished(true)
-    }, 20000)
+    }, 5000)
   }
 
   useEffect(() => {
