@@ -13,6 +13,7 @@ import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { COLORS, SIZES } from '../constants';
 import { ThemeContext } from '../theme/ThemeProvider';
 import { darkColors } from '../theme/colors';
+import BookingConfirmationFlow from '../components/BookingConfirmationFlow';
 
 const FORCED_DARK_THEME = {
     dark: true,
@@ -171,6 +172,16 @@ const ServiceDetails = ({ route, navigation }) => {
     };
 
     const [tab, setTab] = useState('details');
+    const [bookingVisible, setBookingVisible] = useState(false);
+
+    const bookingPayload = {
+        title: 'Booking Request Sent',
+        provider: STATIC_DETAILS.organizer.name,
+        subtitle: `Your request has been sent to ${STATIC_DETAILS.organizer.name}. They will review your request and reply shortly in chat.`,
+        dateLabel: event.eventDateTime,
+        serviceLabel: event.eventName,
+        locationLabel: event.location,
+    };
 
     const renderTabContent = () => {
         switch (tab) {
@@ -252,10 +263,23 @@ const ServiceDetails = ({ route, navigation }) => {
                     <View style={styles.tabContent}>{renderTabContent()}</View>
 
                     {/* Primary CTA */}
-                    <TouchableOpacity style={styles.cta}>
+                    <TouchableOpacity
+                        style={styles.cta}
+                        onPress={() => setBookingVisible(true)}
+                    >
                         <Text style={styles.ctaText}>Reserve Spot</Text>
                     </TouchableOpacity>
                 </ScrollView>
+
+                <BookingConfirmationFlow
+                    visible={bookingVisible}
+                    onClose={() => setBookingVisible(false)}
+                    onViewBooking={() => {
+                        setBookingVisible(false);
+                        navigation?.navigate?.('Bookings');
+                    }}
+                    booking={bookingPayload}
+                />
             </SafeAreaView>
         </ThemeContext.Provider>
     );
