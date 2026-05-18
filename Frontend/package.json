@@ -1,7 +1,8 @@
 {
-  "name": "frontend",
+  "name": "ai-service-orchestrator-frontend",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "description": "Frontend for Madadgar | AI Service Orchestrator for Informal Economy",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
