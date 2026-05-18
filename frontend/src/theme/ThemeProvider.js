@@ -3,7 +3,7 @@ import { useColorScheme } from 'react-native';
 import { lightColors, darkColors } from './colors';
 
 export const ThemeContext = createContext({
-    dark: false,
+    dark: true,
     colors: lightColors,
     setScheme: () => {},
 });

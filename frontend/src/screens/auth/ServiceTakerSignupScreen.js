@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useForm, Controller } from 'react-native-hook-form'; // Note: React Native Hook Form
+import { useForm, Controller } from 'react-hook-form'; //NOTE - React Hook Form
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { registerUser } from '../../services/authService';
