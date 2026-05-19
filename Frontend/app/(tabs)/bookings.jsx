@@ -1,5 +1,5 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,14 +14,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Header from '@/src/components/Header';
+import LeaveReviewModal from '@/src/components/LeaveReviewModal';
 import { useAuth } from '@/src/context/AuthContext';
 import {
   acceptBooking,
   declineBooking,
   getBookingsForUser,
   getJobsForProvider,
+  markBookingCompleted,
+  markBookingReviewed,
 } from '@/src/services/bookingService';
+import { getUserProfile } from '@/src/services/authService';
 import { peerChatSessionId } from '@/src/services/peerChatService';
+import { addReview } from '@/src/services/reviewService';
 import { FONTS, PALETTE, useTheme } from '@/src/theme';
 
 const STATUS_COLORS = {
@@ -62,6 +67,7 @@ export default function BookingsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [reviewTarget, setReviewTarget] = useState(null);
 
   const load = useCallback(async () => {
     if (!user?.uid) {
@@ -83,6 +89,12 @@ export default function BookingsScreen() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -115,6 +127,36 @@ export default function BookingsScreen() {
     } catch {
       load();
     }
+  };
+
+  const handleMarkCompleted = async (id) => {
+    setBookings((prev) =>
+      prev.map((b) => (b.id === id ? { ...b, status: 'completed' } : b)),
+    );
+    try {
+      await markBookingCompleted(id);
+    } catch {
+      load();
+    }
+  };
+
+  const handleSubmitReview = async ({ stars, text }) => {
+    if (!reviewTarget) return;
+    const profile = await getUserProfile(user.uid, role).catch(() => null);
+    await addReview({
+      serviceId: reviewTarget.serviceId,
+      providerId: reviewTarget.providerId,
+      takerId: user.uid,
+      takerName: profile?.fullName || user?.email?.split('@')[0] || 'Customer',
+      takerAvatar: profile?.profilePic || null,
+      stars,
+      text,
+    });
+    await markBookingReviewed(reviewTarget.id);
+    setBookings((prev) =>
+      prev.map((b) => (b.id === reviewTarget.id ? { ...b, reviewed: true } : b)),
+    );
+    setReviewTarget(null);
   };
 
   const openChat = (booking) => {
@@ -204,6 +246,30 @@ export default function BookingsScreen() {
               </TouchableOpacity>
             </>
           )}
+
+          {isProvider && item.status === 'accepted' && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.acceptBtn]}
+              onPress={() => handleMarkCompleted(item.id)}
+            >
+              <Text style={styles.acceptText}>Mark Completed</Text>
+            </TouchableOpacity>
+          )}
+
+          {!isProvider && item.status === 'completed' && !item.reviewed && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.acceptBtn]}
+              onPress={() => setReviewTarget(item)}
+            >
+              <Text style={styles.acceptText}>Leave Review</Text>
+            </TouchableOpacity>
+          )}
+
+          {!isProvider && item.status === 'completed' && item.reviewed && (
+            <View style={[styles.actionBtn, styles.declineBtn]}>
+              <Text style={styles.declineText}>Reviewed</Text>
+            </View>
+          )}
         </View>
       </View>
     );
@@ -262,6 +328,13 @@ export default function BookingsScreen() {
           />
         )}
       </View>
+
+      <LeaveReviewModal
+        visible={!!reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        onSubmit={handleSubmitReview}
+        serviceLabel={reviewTarget?.serviceTitle}
+      />
     </SafeAreaView>
   );
 }

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -46,11 +46,26 @@ export default function TakerHomeScreen() {
   const [profile, setProfile] = useState(null);
 
   const { data: categories, loading: catsLoading } = useCategories();
-  const { data: featuredProviders, loading: provLoading } = useFeaturedProviders(6);
-  const { data: services, loading: svcLoading } = useServices({
+  const {
+    data: featuredProviders,
+    loading: provLoading,
+    refresh: refreshProviders,
+  } = useFeaturedProviders(6);
+  const {
+    data: services,
+    loading: svcLoading,
+    refresh: refreshServices,
+  } = useServices({
     categoryIds: selectedCategories,
     search,
   });
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshProviders();
+      refreshServices();
+    }, [refreshProviders, refreshServices]),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -89,10 +104,9 @@ export default function TakerHomeScreen() {
   }, [categories]);
 
   const openProvider = (provider) => {
-    if (!provider.topServiceId) return;
     router.push({
-      pathname: '/service/[id]',
-      params: { id: provider.topServiceId },
+      pathname: '/provider/[id]',
+      params: { id: provider.id },
     });
   };
 

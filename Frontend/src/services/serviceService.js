@@ -1,10 +1,12 @@
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   limit,
   query,
+  serverTimestamp,
   where,
 } from 'firebase/firestore';
 
@@ -48,4 +50,17 @@ export const getServicesByProvider = async (providerId) => {
   const snap = await getDocs(q);
   const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   return items.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+};
+
+export const addService = async (providerId, service) => {
+  if (!providerId || !service) return null;
+  const ref = await addDoc(collection(db, 'services'), {
+    ...service,
+    providerId,
+    rating: 0,
+    reviewCount: 0,
+    active: true,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
 };

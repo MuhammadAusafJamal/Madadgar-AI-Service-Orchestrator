@@ -1,28 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { getCategories } from '@/src/services/categoryService';
+import { CATEGORIES } from '@/src/constants/categories';
 
 export function useCategories() {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [data, setData] = useState(CATEGORIES);
+  const [loading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const items = await getCategories();
-      setData(items);
-    } catch (e) {
-      setError(e);
-    } finally {
-      setLoading(false);
-    }
+  const refresh = useCallback(() => {
+    setData(CATEGORIES);
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    setData(CATEGORIES);
+  }, []);
 
-  return { data, loading, error, refresh: load };
+  return { data, loading, error: null, refresh };
 }

@@ -185,15 +185,21 @@ export default function ProfileScreen() {
           </View>
 
           <View style={styles.settingsContainer}>
-            {SETTINGS.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.settingsRow}>
-                <View style={styles.settingsLeft}>
-                  <Ionicons name={item.icon} size={22} color={colors.text} />
-                  <Text style={styles.settingsLabel}>{item.label}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            ))}
+            {SETTINGS.map((item) => {
+              const onPress = () => {
+                if (item.id === 'edit') router.push('/edit-profile');
+                else if (item.id === 'bookings') router.push('/(tabs)/bookings');
+              };
+              return (
+                <TouchableOpacity key={item.id} style={styles.settingsRow} onPress={onPress}>
+                  <View style={styles.settingsLeft}>
+                    <Ionicons name={item.icon} size={22} color={colors.text} />
+                    <Text style={styles.settingsLabel}>{item.label}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              );
+            })}
 
             <TouchableOpacity
               style={styles.settingsRow}

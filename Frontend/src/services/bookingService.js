@@ -115,3 +115,20 @@ export const declineBooking = async (bookingId) => {
     updatedAt: serverTimestamp(),
   });
 };
+
+export const markBookingCompleted = async (bookingId) => {
+  if (!bookingId) return;
+  await updateDoc(doc(db, 'bookings', bookingId), {
+    status: 'completed',
+    completedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const markBookingReviewed = async (bookingId) => {
+  if (!bookingId) return;
+  await updateDoc(doc(db, 'bookings', bookingId), {
+    reviewed: true,
+    updatedAt: serverTimestamp(),
+  });
+};

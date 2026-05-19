@@ -1,6 +1,6 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -16,7 +16,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { useProviderDashboard } from '@/src/hooks/useProviderDashboard';
 import { getUserProfile } from '@/src/services/authService';
 import { peerChatSessionId } from '@/src/services/peerChatService';
-import { useTheme } from '@/src/theme';
+import { PALETTE, useTheme } from '@/src/theme';
 import { makeProviderStyles } from './ProviderHomeScreen.styles';
 
 const FALLBACK_AVATAR = 'https://i.pravatar.cc/100?u=madadgar-provider';
@@ -47,7 +47,14 @@ export default function ProviderHomeScreen() {
     loading,
     accept,
     decline,
+    refresh,
   } = useProviderDashboard(user?.uid);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -238,6 +245,14 @@ export default function ProviderHomeScreen() {
             ))
           )}
         </ScrollView>
+
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => router.push('/create-service')}
+          activeOpacity={0.9}
+        >
+          <Ionicons name="add" size={26} color={PALETTE.black} />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

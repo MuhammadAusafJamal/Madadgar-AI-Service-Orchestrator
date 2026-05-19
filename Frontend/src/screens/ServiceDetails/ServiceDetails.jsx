@@ -131,7 +131,7 @@ const ReviewsTab = ({ styles, reviews, service }) => {
   );
 };
 
-const ProviderTab = ({ styles, provider }) => {
+const ProviderTab = ({ styles, provider, onViewProfile }) => {
   if (!provider) {
     return (
       <Text style={[styles.bodyText, { paddingVertical: 12 }]}>
@@ -141,7 +141,7 @@ const ProviderTab = ({ styles, provider }) => {
   }
   return (
     <View>
-      <View style={styles.organizerRow}>
+      <TouchableOpacity onPress={onViewProfile} activeOpacity={0.85} style={styles.organizerRow}>
         <Image
           source={{
             uri: provider.profilePic || 'https://i.pravatar.cc/100?u=provider',
@@ -154,12 +154,10 @@ const ProviderTab = ({ styles, provider }) => {
             ★ {provider.rating?.toFixed?.(1) || '—'} · {provider.completedJobs || 0} completed jobs
           </Text>
         </View>
-        {provider.verified && (
-          <View style={styles.followBtn}>
-            <Text style={styles.followBtnText}>Verified</Text>
-          </View>
-        )}
-      </View>
+        <TouchableOpacity style={styles.followBtn} onPress={onViewProfile}>
+          <Text style={styles.followBtnText}>View Profile</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
 
       <Text style={[styles.sectionLabel, { marginTop: 24 }]}>About</Text>
       <Text style={styles.bodyText}>{provider.bio || 'No bio provided.'}</Text>
@@ -261,7 +259,19 @@ export default function ServiceDetails() {
       case 'reviews':
         return <ReviewsTab styles={styles} reviews={reviews} service={service} />;
       case 'provider':
-        return <ProviderTab styles={styles} provider={provider} />;
+        return (
+          <ProviderTab
+            styles={styles}
+            provider={provider}
+            onViewProfile={() =>
+              provider &&
+              router.push({
+                pathname: '/provider/[id]',
+                params: { id: provider.id },
+              })
+            }
+          />
+        );
       default:
         return null;
     }

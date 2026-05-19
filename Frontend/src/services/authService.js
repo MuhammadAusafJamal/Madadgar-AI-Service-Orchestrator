@@ -4,7 +4,7 @@ import {
   signOut,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 
 import { auth, db } from './firebaseService';
 
@@ -59,4 +59,13 @@ export const getUserProfile = async (uid, role) => {
   const collectionName = role === 'provider' ? 'providers' : 'service_takers';
   const profileDoc = await getDoc(doc(db, collectionName, uid));
   return profileDoc.exists() ? profileDoc.data() : null;
+};
+
+export const updateUserProfile = async (uid, role, updates) => {
+  if (!uid || !role) return;
+  const collectionName = role === 'provider' ? 'providers' : 'service_takers';
+  await updateDoc(doc(db, collectionName, uid), {
+    ...updates,
+    updatedAt: serverTimestamp(),
+  });
 };
