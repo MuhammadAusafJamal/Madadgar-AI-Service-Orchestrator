@@ -1,20 +1,19 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import Header from '@/src/components/Header';
 import { useAuth } from '@/src/context/AuthContext';
-import { logoutUser } from '@/src/services/authService';
+import { getUserProfile, logoutUser } from '@/src/services/authService';
+import { getBookingsCountByUser } from '@/src/services/bookingService';
+import { getFavouritesCountByUser } from '@/src/services/favouriteService';
 import { PALETTE, SCHEME_OPTIONS, useTheme } from '@/src/theme';
 import { makeStyles } from './ProfileScreen.styles';
 
-const STATIC_USER = {
-  name: 'Muhammad Ausaf',
-  email: 'abc@g.com',
-  avatar: 'https://i.pravatar.cc/200?u=hackathon-profile',
-  stats: { bookings: 12, favourites: 8 },
-};
+const FALLBACK_AVATAR = 'https://i.pravatar.cc/200?u=madadgar-default';
 
 const SETTINGS = [
   { id: 'bookings', label: 'My Bookings', icon: 'calendar-outline' },
@@ -31,6 +30,40 @@ export default function ProfileScreen() {
   const { user, role } = useAuth();
   const styles = makeStyles(colors);
 
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [bookingsCount, setBookingsCount] = useState(null);
+  const [favouritesCount, setFavouritesCount] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!user?.uid || !role) {
+      setProfile(null);
+      setBookingsCount(null);
+      setFavouritesCount(null);
+      setProfileLoading(false);
+      return;
+    }
+
+    setProfileLoading(true);
+    Promise.all([
+      getUserProfile(user.uid, role).catch(() => null),
+      getBookingsCountByUser(user.uid).catch(() => 0),
+      getFavouritesCountByUser(user.uid).catch(() => 0),
+    ]).then(([data, bCount, fCount]) => {
+      if (cancelled) return;
+      setProfile(data);
+      setBookingsCount(bCount);
+      setFavouritesCount(fCount);
+      setProfileLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, role]);
+
   const handleLogout = async () => {
     try {
       await logoutUser();
@@ -40,40 +73,55 @@ export default function ProfileScreen() {
     router.replace('/(auth)/role');
   };
 
-  const displayName = user?.displayName || STATIC_USER.name;
-  const displayEmail = user?.email || STATIC_USER.email;
+  const displayName = profile?.fullName || user?.displayName || (user?.email?.split('@')[0]) || 'Guest';
+  const displayEmail = user?.email || profile?.email || '—';
+  const displayPhone = profile?.phone;
   const displayRole = role === 'provider' ? 'Service Provider' : 'Service Taker';
+  const avatarUri = profile?.profilePic || profile?.photoURL || user?.photoURL || FALLBACK_AVATAR;
+  const isVerified = profile?.verified === true;
 
   return (
     <SafeAreaView style={styles.area}>
       <View style={styles.container}>
-        <View style={styles.headerBar}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <TouchableOpacity>
-            <Ionicons name="ellipsis-horizontal" size={22} color={colors.text} />
-          </TouchableOpacity>
-        </View>
+        <Header
+          title="Profile"
+          allowBackIcon={false}
+          actionIcon="ellipsis-horizontal"
+        />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           <View style={styles.profileCard}>
-            <Image source={{ uri: STATIC_USER.avatar }} style={styles.avatar} />
-            <Text style={styles.name}>{displayName}</Text>
-            <Text style={styles.email}>{displayEmail}</Text>
+            <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            {profileLoading ? (
+              <ActivityIndicator color={colors.accent} style={{ marginTop: 14 }} />
+            ) : (
+              <>
+                <Text style={styles.name}>{displayName}</Text>
+                <Text style={styles.email}>{displayEmail}</Text>
+                {!!displayPhone && <Text style={styles.email}>{displayPhone}</Text>}
+              </>
+            )}
 
             <View style={styles.statsContainer}>
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{STATIC_USER.stats.bookings}</Text>
+                <Text style={styles.statNumber}>{bookingsCount ?? '—'}</Text>
                 <Text style={styles.statLabel}>Bookings</Text>
               </View>
               <View style={styles.verticalLine} />
               <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{STATIC_USER.stats.favourites}</Text>
+                <Text style={styles.statNumber}>{favouritesCount ?? '—'}</Text>
                 <Text style={styles.statLabel}>Favourites</Text>
               </View>
               <View style={styles.verticalLine} />
               <View style={styles.statBox}>
-                <MaterialIcons name="verified" size={18} color={PALETTE.golden} />
-                <Text style={styles.statLabel}>Verified</Text>
+                <MaterialIcons
+                  name={isVerified ? 'verified' : 'verified-user'}
+                  size={18}
+                  color={isVerified ? PALETTE.golden : colors.textSecondary}
+                />
+                <Text style={styles.statLabel}>
+                  {isVerified ? 'Verified' : 'Unverified'}
+                </Text>
               </View>
             </View>
 

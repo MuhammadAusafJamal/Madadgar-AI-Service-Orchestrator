@@ -13,17 +13,11 @@ export const makeStyles = (_colors) =>
       flex: 1,
       backgroundColor: SURFACE,
     },
-    headerContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+    headerOverride: {
       backgroundColor: SURFACE,
+      borderBottomWidth: 0,
     },
-    headerTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+    headerTitleOverride: {
       color: PALETTE.white,
     },
     backgroundImage: {

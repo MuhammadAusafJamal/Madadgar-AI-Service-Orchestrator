@@ -9,25 +9,6 @@ export const makeStyles = (colors) =>
     container: {
       flex: 1,
     },
-    header: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    headerTitle: {
-      color: colors.text,
-      fontSize: 18,
-      fontWeight: '700',
-    },
-    clearButton: {
-      color: colors.accent,
-      fontSize: 14,
-      fontWeight: '600',
-    },
     list: {
       flex: 1,
     },
@@ -52,19 +33,45 @@ export const makeStyles = (colors) =>
       fontSize: 14,
       textAlign: 'center',
     },
-    bubble: {
-      maxWidth: '85%',
-      padding: 12,
-      borderRadius: 16,
+    messageRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-end',
+      gap: 8,
       marginVertical: 4,
     },
+    messageRowUser: {
+      justifyContent: 'flex-end',
+    },
+    messageRowAssistant: {
+      justifyContent: 'flex-start',
+    },
+    avatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarAssistant: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    avatarUser: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    bubble: {
+      maxWidth: '78%',
+      padding: 12,
+      borderRadius: 16,
+    },
     bubbleUser: {
-      alignSelf: 'flex-end',
       backgroundColor: colors.accent,
       borderBottomRightRadius: 4,
     },
     bubbleAssistant: {
-      alignSelf: 'flex-start',
       backgroundColor: colors.surface,
       borderBottomLeftRadius: 4,
     },

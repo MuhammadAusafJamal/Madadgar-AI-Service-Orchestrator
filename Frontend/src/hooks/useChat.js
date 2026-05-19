@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { sendChatMessage } from '@/src/api/endpoints/orchestration';
+import { useAuth } from '@/src/context/AuthContext';
+import { saveBookingForUser } from '@/src/services/bookingService';
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -14,6 +16,7 @@ function formatHistory(messages) {
 }
 
 export function useChat() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -59,6 +62,10 @@ export function useChat() {
             booking: result?.booking,
           },
         ]);
+
+        if (result?.booking && user?.uid) {
+          saveBookingForUser(user.uid, result.booking).catch(() => {});
+        }
       } catch (err) {
         if (err.name === 'AbortError') return;
         setError(err.message);
@@ -70,7 +77,7 @@ export function useChat() {
         setLoading(false);
       }
     },
-    [messages, loading]
+    [messages, loading, user?.uid]
   );
 
   const reset = useCallback(() => {

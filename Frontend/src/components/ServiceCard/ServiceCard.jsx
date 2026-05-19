@@ -1,7 +1,9 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
+import { useAuth } from '@/src/context/AuthContext';
+import { isFavourite, toggleFavourite } from '@/src/services/favouriteService';
 import { PALETTE, useTheme } from '@/src/theme';
 import { makeStyles } from './ServiceCard.styles';
 
@@ -12,10 +14,43 @@ export default function ServiceCard({
   location,
   onPress,
   fullWidth,
+  itemId,
+  itemData,
 }) {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const [favorited, setFavorited] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const styles = makeStyles(colors);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.uid || !itemId) {
+      setFavorited(false);
+      return;
+    }
+    isFavourite(user.uid, itemId)
+      .then((v) => !cancelled && setFavorited(v))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, itemId]);
+
+  const handleToggleFavourite = async () => {
+    if (!user?.uid || !itemId || toggling) return;
+    setToggling(true);
+    const previous = favorited;
+    setFavorited(!previous);
+    try {
+      const nowFav = await toggleFavourite(user.uid, itemId, itemData || {});
+      setFavorited(nowFav);
+    } catch {
+      setFavorited(previous);
+    } finally {
+      setToggling(false);
+    }
+  };
 
   return (
     <TouchableOpacity
@@ -50,7 +85,7 @@ export default function ServiceCard({
             </Text>
           </View>
 
-          <TouchableOpacity onPress={() => setFavorited((v) => !v)} hitSlop={8}>
+          <TouchableOpacity onPress={handleToggleFavourite} hitSlop={8} disabled={!user?.uid || !itemId}>
             <Ionicons
               name={favorited ? 'heart' : 'heart-outline'}
               size={20}

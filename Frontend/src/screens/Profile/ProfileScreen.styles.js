@@ -15,17 +15,6 @@ export const makeStyles = (colors) =>
     scroll: {
       paddingBottom: 32,
     },
-    headerBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 12,
-    },
-    headerTitle: {
-      ...FONTS.h2,
-      color: colors.text,
-      fontWeight: '700',
-    },
     profileCard: {
       alignItems: 'center',
       borderBottomColor: colors.border,

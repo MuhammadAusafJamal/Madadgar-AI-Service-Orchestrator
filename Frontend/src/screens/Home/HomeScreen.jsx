@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   FlatList,
-  Image,
   ScrollView,
   Text,
   TextInput,
@@ -13,16 +12,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Category from '@/src/components/Category';
+import Header from '@/src/components/Header';
 import ServiceCard from '@/src/components/ServiceCard';
 import SubHeaderItem from '@/src/components/SubHeaderItem';
-import { PALETTE, SIZES, useTheme } from '@/src/theme';
+import { useAuth } from '@/src/context/AuthContext';
+import { getUserProfile } from '@/src/services/authService';
+import { SIZES, useTheme } from '@/src/theme';
 import { makeStyles } from './HomeScreen.styles';
 
-const STATIC_PROFILE = {
-  username: 'Muhammad',
-  avatar: 'https://i.pravatar.cc/100?u=hackathon',
-  unreadNotifications: 3,
-};
+const FALLBACK_AVATAR = 'https://i.pravatar.cc/100?u=madadgar-default';
 
 const STATIC_CATEGORIES = [
   { id: 'tech', name: 'Tech', icon: 'laptop-outline', iconColor: '#7B9CFF', backgroundColor: 'rgba(123,156,255,0.18)' },
@@ -47,10 +45,34 @@ const STATIC_EVENTS = [
 export default function HomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { user, role } = useAuth();
   const styles = makeStyles(colors);
 
   const [search, setSearch] = useState('');
   const [selectedCategories, setSelectedCategories] = useState([]);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user?.uid || !role) {
+      setProfile(null);
+      return;
+    }
+    getUserProfile(user.uid, role)
+      .then((data) => !cancelled && setProfile(data))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.uid, role]);
+
+  const firstName =
+    profile?.fullName?.split(' ')[0] ||
+    user?.displayName?.split(' ')[0] ||
+    user?.email?.split('@')[0] ||
+    'there';
+  const avatarUri =
+    profile?.profilePic || profile?.photoURL || user?.photoURL || FALLBACK_AVATAR;
 
   const toggleCategory = (id) => {
     setSelectedCategories((prev) =>
@@ -78,22 +100,15 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.area}>
       <View style={styles.container}>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <TouchableOpacity onPress={() => router.push('/(tabs)/profile')}>
-              <Image source={{ uri: STATIC_PROFILE.avatar }} style={styles.avatar} />
-            </TouchableOpacity>
-            <Text style={styles.username}>Hi, {STATIC_PROFILE.username}!</Text>
-          </View>
-          <TouchableOpacity>
-            <Ionicons name="notifications-outline" size={24} color={colors.text} />
-            {STATIC_PROFILE.unreadNotifications > 0 && (
-              <View style={styles.noti}>
-                <Text style={styles.notiText}>{STATIC_PROFILE.unreadNotifications}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
+        <Header
+          variant="profileHeader"
+          profileHeaderProps={{
+            profileImage: avatarUri,
+            username: firstName,
+            unreadNotificationCount: 0,
+            onAvatarPress: () => router.push('/(tabs)/profile'),
+          }}
+        />
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
           <View style={styles.searchContainer}>
@@ -120,6 +135,8 @@ export default function HomeScreen() {
               renderItem={({ item }) => (
                 <View style={styles.cardWrapper}>
                   <ServiceCard
+                    itemId={item.id}
+                    itemData={item}
                     providerName={item.eventName}
                     eventDateTime={item.eventDateTime}
                     image={item.image}
@@ -182,6 +199,8 @@ export default function HomeScreen() {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <ServiceCard
+                    itemId={item.id}
+                    itemData={item}
                     providerName={item.eventName}
                     eventDateTime={item.eventDateTime}
                     image={item.image}

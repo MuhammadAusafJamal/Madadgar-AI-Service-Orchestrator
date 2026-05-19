@@ -13,15 +13,13 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
+        headerShown: false,
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
         },
-        headerStyle: { backgroundColor: colors.background },
-        headerTitleStyle: { color: colors.text },
-        headerTintColor: colors.text,
       }}>
       <Tabs.Screen
         name="index"

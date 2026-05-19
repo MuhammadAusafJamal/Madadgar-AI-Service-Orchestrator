@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BookingConfirmationFlow from '@/src/components/BookingConfirmationFlow';
+import Header from '@/src/components/Header';
 import { PALETTE, useTheme } from '@/src/theme';
 import { makeStyles } from './ServiceDetails.styles';
 
@@ -192,16 +193,12 @@ export default function ServiceDetails() {
 
   return (
     <SafeAreaView style={styles.area} edges={['top']}>
-      <View style={styles.headerContainer}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="chevron-back" size={26} color={PALETTE.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Event Details</Text>
-        <View style={{ width: 26 }} />
-      </View>
+      <Header
+        title="Event Details"
+        customStyles={styles.headerOverride}
+        customTextStyles={styles.headerTitleOverride}
+        iconColor={PALETTE.white}
+      />
 
       <ScrollView
         style={{ flex: 1 }}

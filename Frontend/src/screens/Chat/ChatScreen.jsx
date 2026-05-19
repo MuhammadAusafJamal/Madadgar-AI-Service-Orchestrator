@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import Header from '@/src/components/Header';
 import { useChat } from '@/src/hooks/useChat';
 import { useTheme } from '@/src/theme';
 
@@ -44,30 +45,40 @@ export default function ChatScreen() {
   const renderItem = ({ item }) => {
     const isUser = item.role === 'user';
     return (
-      <View
-        style={[
-          styles.bubble,
-          isUser ? styles.bubbleUser : styles.bubbleAssistant,
-          item.isError && styles.bubbleError,
-        ]}
-      >
-        <Text style={isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant}>
-          {item.text}
-        </Text>
+      <View style={[styles.messageRow, isUser ? styles.messageRowUser : styles.messageRowAssistant]}>
+        {!isUser && (
+          <View style={[styles.avatar, styles.avatarAssistant]}>
+            <Ionicons name="sparkles" size={16} color={colors.accent} />
+          </View>
+        )}
+        <View
+          style={[
+            styles.bubble,
+            isUser ? styles.bubbleUser : styles.bubbleAssistant,
+            item.isError && styles.bubbleError,
+          ]}
+        >
+          <Text style={isUser ? styles.bubbleTextUser : styles.bubbleTextAssistant}>
+            {item.text}
+          </Text>
+        </View>
+        {isUser && (
+          <View style={[styles.avatar, styles.avatarUser]}>
+            <Ionicons name="person" size={16} color={colors.text} />
+          </View>
+        )}
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.area} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Madadgar Assistant</Text>
-        {messages.length > 0 && (
-          <TouchableOpacity onPress={reset}>
-            <Text style={styles.clearButton}>Clear</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      <Header
+        title="Madadgar Assistant"
+        allowBackIcon={false}
+        actionText={messages.length > 0 ? 'Clear' : undefined}
+        onActionPress={reset}
+      />
 
       <KeyboardAvoidingView
         style={styles.container}

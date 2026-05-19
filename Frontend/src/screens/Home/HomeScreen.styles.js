@@ -15,43 +15,6 @@ export const makeStyles = (colors) =>
     scroll: {
       paddingBottom: 24,
     },
-    header: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingVertical: 12,
-    },
-    headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    avatar: {
-      height: 36,
-      width: 36,
-      borderRadius: 18,
-      marginRight: 12,
-    },
-    username: {
-      ...FONTS.bodyMedium,
-      color: colors.text,
-    },
-    noti: {
-      minWidth: 16,
-      height: 16,
-      paddingHorizontal: 4,
-      borderRadius: 8,
-      backgroundColor: PALETTE.red,
-      position: 'absolute',
-      top: -4,
-      right: -4,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    notiText: {
-      fontSize: 10,
-      color: PALETTE.white,
-      fontWeight: '700',
-    },
     searchContainer: {
       height: 50,
       borderRadius: 30,

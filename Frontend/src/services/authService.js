@@ -53,3 +53,10 @@ export const getUserRole = async (uid) => {
   }
   return null;
 };
+
+export const getUserProfile = async (uid, role) => {
+  if (!uid || !role) return null;
+  const collectionName = role === 'provider' ? 'providers' : 'service_takers';
+  const profileDoc = await getDoc(doc(db, collectionName, uid));
+  return profileDoc.exists() ? profileDoc.data() : null;
+};
