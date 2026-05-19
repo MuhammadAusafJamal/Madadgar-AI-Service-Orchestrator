@@ -63,6 +63,18 @@ export default function HomeScreen() {
       ? STATIC_EVENTS
       : STATIC_EVENTS.filter((e) => selectedCategories.includes(e.category));
 
+  const openEvent = (item) =>
+    router.push({
+      pathname: '/service/[id]',
+      params: {
+        id: item.id,
+        eventName: item.eventName,
+        eventDateTime: item.eventDateTime,
+        location: item.location,
+        image: item.image,
+      },
+    });
+
   return (
     <SafeAreaView style={styles.area}>
       <View style={styles.container}>
@@ -113,6 +125,7 @@ export default function HomeScreen() {
                     image={item.image}
                     location={item.location}
                     fullWidth
+                    onPress={() => openEvent(item)}
                   />
                 </View>
               )}
@@ -173,6 +186,7 @@ export default function HomeScreen() {
                     eventDateTime={item.eventDateTime}
                     image={item.image}
                     location={item.location}
+                    onPress={() => openEvent(item)}
                   />
                 )}
               />
