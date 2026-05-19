@@ -2,7 +2,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Header from '@/src/components/Header';
@@ -10,6 +10,7 @@ import { useAuth } from '@/src/context/AuthContext';
 import { getUserProfile, logoutUser } from '@/src/services/authService';
 import { getBookingsCountByUser } from '@/src/services/bookingService';
 import { getFavouritesCountByUser } from '@/src/services/favouriteService';
+import { seedFirestore } from '@/src/services/seedService';
 import { PALETTE, SCHEME_OPTIONS, useTheme } from '@/src/theme';
 import { makeStyles } from './ProfileScreen.styles';
 
@@ -18,10 +19,10 @@ const FALLBACK_AVATAR = 'https://i.pravatar.cc/200?u=madadgar-default';
 const SETTINGS = [
   { id: 'bookings', label: 'My Bookings', icon: 'calendar-outline' },
   { id: 'edit', label: 'Edit Profile', icon: 'person-outline' },
-  { id: 'payment', label: 'Payment Methods', icon: 'card-outline' },
-  { id: 'notifications', label: 'Notifications', icon: 'notifications-outline' },
-  { id: 'help', label: 'Help & Support', icon: 'help-circle-outline' },
-  { id: 'about', label: 'About', icon: 'information-circle-outline' },
+  // { id: 'payment', label: 'Payment Methods', icon: 'card-outline' },
+  // { id: 'notifications', label: 'Notifications', icon: 'notifications-outline' },
+  // { id: 'help', label: 'Help & Support', icon: 'help-circle-outline' },
+  // { id: 'about', label: 'About', icon: 'information-circle-outline' },
 ];
 
 export default function ProfileScreen() {
@@ -34,6 +35,7 @@ export default function ProfileScreen() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [bookingsCount, setBookingsCount] = useState(null);
   const [favouritesCount, setFavouritesCount] = useState(null);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +73,22 @@ export default function ProfileScreen() {
       // ignore — auth state listener will still fire if signed out
     }
     router.replace('/(auth)/role');
+  };
+
+  const handleSeed = async () => {
+    if (seeding) return;
+    setSeeding(true);
+    try {
+      const result = await seedFirestore({ currentUid: user?.uid, role });
+      Alert.alert(
+        'Seed complete',
+        `Categories, providers, services and reviews loaded.\nDemo bookings created: ${result.demoBookingsSeeded}`,
+      );
+    } catch (e) {
+      Alert.alert('Seed failed', e?.message || 'Could not write to Firestore.');
+    } finally {
+      setSeeding(false);
+    }
   };
 
   const displayName = profile?.fullName || user?.displayName || (user?.email?.split('@')[0]) || 'Guest';
@@ -176,6 +194,24 @@ export default function ProfileScreen() {
                 <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
               </TouchableOpacity>
             ))}
+
+            <TouchableOpacity
+              style={styles.settingsRow}
+              onPress={handleSeed}
+              disabled={seeding}
+            >
+              <View style={styles.settingsLeft}>
+                <Ionicons name="sparkles-outline" size={22} color={PALETTE.golden} />
+                <Text style={styles.settingsLabel}>
+                  {seeding ? 'Seeding demo data…' : 'Reseed Demo Data'}
+                </Text>
+              </View>
+              {seeding ? (
+                <ActivityIndicator size="small" color={PALETTE.golden} />
+              ) : (
+                <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
+              )}
+            </TouchableOpacity>
 
             <TouchableOpacity style={styles.logoutRow} onPress={handleLogout}>
               <Ionicons name="log-out-outline" size={22} color="#FF6B6B" />

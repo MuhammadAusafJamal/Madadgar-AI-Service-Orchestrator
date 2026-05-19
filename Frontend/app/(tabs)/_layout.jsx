@@ -1,6 +1,7 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Tabs } from 'expo-router';
 
+import { useAuth } from '@/src/context/AuthContext';
 import { useTheme } from '@/src/theme';
 
 function TabBarIcon(props) {
@@ -9,6 +10,8 @@ function TabBarIcon(props) {
 
 export default function TabLayout() {
   const { colors } = useTheme();
+  const { role } = useAuth();
+  const isProvider = role === 'provider';
 
   return (
     <Tabs
@@ -38,15 +41,17 @@ export default function TabLayout() {
       <Tabs.Screen
         name="bookings"
         options={{
-          title: 'Bookings',
+          title: isProvider ? 'Jobs' : 'Bookings',
           tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
         }}
       />
       <Tabs.Screen
         name="favourites"
         options={{
-          title: 'Favourites',
-          tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
+          title: isProvider ? 'Earnings' : 'Favourites',
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon name={isProvider ? 'dollar' : 'heart'} color={color} />
+          ),
         }}
       />
       <Tabs.Screen

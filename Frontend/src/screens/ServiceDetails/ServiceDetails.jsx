@@ -1,7 +1,8 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Image,
   ImageBackground,
   ScrollView,
@@ -13,62 +14,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import BookingConfirmationFlow from '@/src/components/BookingConfirmationFlow';
 import Header from '@/src/components/Header';
+import { useAuth } from '@/src/context/AuthContext';
+import { useServiceDetail } from '@/src/hooks/useServiceDetail';
+import { saveBookingForUser } from '@/src/services/bookingService';
+import { peerChatSessionId } from '@/src/services/peerChatService';
 import { PALETTE, useTheme } from '@/src/theme';
 import { makeStyles } from './ServiceDetails.styles';
 
 const TABS = [
   { key: 'details', title: 'Details' },
   { key: 'reviews', title: 'Reviews' },
-  { key: 'guests', title: 'Influencers' },
-];
-
-const STATIC_DETAILS = {
-  description:
-    'An exclusive night for tastemakers and founders. Curated guest list, signature cocktails, live acoustic sets, and intimate conversations under the city lights. Dress code: smart casual.',
-  highlights: [
-    'Welcome cocktail',
-    'Live acoustic sets',
-    'Curated guest list',
-    'Late-night dinner',
-  ],
-  organizer: {
-    name: 'CreateGroup × VIPLISTA',
-    tagline: 'Luxury experiences for modern brands',
-    avatar: 'https://i.pravatar.cc/100?u=organizer',
-  },
-};
-
-const STATIC_REVIEWS = [
-  {
-    id: 'r1',
-    name: 'Sara Khan',
-    avatar: 'https://i.pravatar.cc/100?u=sara',
-    stars: 5,
-    text: 'One of the best events I have attended this year. Crowd was incredible.',
-  },
-  {
-    id: 'r2',
-    name: 'Ali Raza',
-    avatar: 'https://i.pravatar.cc/100?u=ali',
-    stars: 4,
-    text: 'Loved the venue and the live music. Could have used more food options though.',
-  },
-  {
-    id: 'r3',
-    name: 'Hina Tariq',
-    avatar: 'https://i.pravatar.cc/100?u=hina',
-    stars: 5,
-    text: 'Perfectly curated. Met so many founders and creators. Already booked next month.',
-  },
-];
-
-const STATIC_INFLUENCERS = [
-  { id: 'i1', name: 'Zara M.', avatar: 'https://i.pravatar.cc/100?u=zara', followers: '124k' },
-  { id: 'i2', name: 'Bilal A.', avatar: 'https://i.pravatar.cc/100?u=bilal', followers: '88k' },
-  { id: 'i3', name: 'Mehak S.', avatar: 'https://i.pravatar.cc/100?u=mehak', followers: '215k' },
-  { id: 'i4', name: 'Hassan K.', avatar: 'https://i.pravatar.cc/100?u=hassan', followers: '47k' },
-  { id: 'i5', name: 'Anum R.', avatar: 'https://i.pravatar.cc/100?u=anum', followers: '301k' },
-  { id: 'i6', name: 'Faraz J.', avatar: 'https://i.pravatar.cc/100?u=faraz', followers: '62k' },
+  { key: 'provider', title: 'Provider' },
 ];
 
 const Stars = ({ count }) => (
@@ -85,116 +41,240 @@ const Stars = ({ count }) => (
   </View>
 );
 
-const DetailsTab = ({ styles }) => (
-  <View>
-    <Text style={styles.sectionLabel}>About this event</Text>
-    <Text style={styles.bodyText}>{STATIC_DETAILS.description}</Text>
+const formatScheduleLabel = (service) => {
+  if (!service) return 'Schedule TBD';
+  const price = typeof service.basePrice === 'number'
+    ? `PKR ${service.basePrice.toLocaleString()}${service.priceUnit ? ` / ${service.priceUnit}` : ''}`
+    : null;
+  return [price, service.duration].filter(Boolean).join(' • ');
+};
 
-    <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Highlights</Text>
-    <View style={styles.chipRow}>
-      {STATIC_DETAILS.highlights.map((h) => (
-        <View key={h} style={styles.chip}>
-          <Text style={styles.chipText}>{h}</Text>
+const DetailsTab = ({ styles, service, provider }) => (
+  <View>
+    <Text style={styles.sectionLabel}>About this service</Text>
+    <Text style={styles.bodyText}>
+      {service?.description || 'No description provided.'}
+    </Text>
+
+    {Array.isArray(service?.highlights) && service.highlights.length > 0 && (
+      <>
+        <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Highlights</Text>
+        <View style={styles.chipRow}>
+          {service.highlights.map((h) => (
+            <View key={h} style={styles.chip}>
+              <Text style={styles.chipText}>{h}</Text>
+            </View>
+          ))}
         </View>
-      ))}
-    </View>
+      </>
+    )}
 
-    <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Organizer</Text>
-    <View style={styles.organizerRow}>
-      <Image source={{ uri: STATIC_DETAILS.organizer.avatar }} style={styles.organizerAvatar} />
-      <View style={{ marginLeft: 12, flex: 1 }}>
-        <Text style={styles.organizerName}>{STATIC_DETAILS.organizer.name}</Text>
-        <Text style={styles.organizerTagline}>{STATIC_DETAILS.organizer.tagline}</Text>
-      </View>
-      <TouchableOpacity style={styles.followBtn}>
-        <Text style={styles.followBtnText}>Follow</Text>
-      </TouchableOpacity>
-    </View>
-  </View>
-);
-
-const ReviewsTab = ({ styles }) => (
-  <View>
-    <View style={styles.ratingSummary}>
-      <Text style={styles.ratingNumber}>4.7</Text>
-      <View style={{ marginLeft: 12 }}>
-        <Stars count={5} />
-        <Text style={styles.ratingCount}>Based on 124 reviews</Text>
-      </View>
-    </View>
-
-    {STATIC_REVIEWS.map((r) => (
-      <View key={r.id} style={styles.reviewCard}>
-        <View style={styles.reviewHeader}>
-          <Image source={{ uri: r.avatar }} style={styles.reviewAvatar} />
-          <View style={{ marginLeft: 10, flex: 1 }}>
-            <Text style={styles.reviewName}>{r.name}</Text>
-            <Stars count={r.stars} />
+    {provider && (
+      <>
+        <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Provider</Text>
+        <View style={styles.organizerRow}>
+          <Image
+            source={{
+              uri: provider.profilePic || 'https://i.pravatar.cc/100?u=provider',
+            }}
+            style={styles.organizerAvatar}
+          />
+          <View style={{ marginLeft: 12, flex: 1 }}>
+            <Text style={styles.organizerName}>{provider.fullName}</Text>
+            <Text style={styles.organizerTagline} numberOfLines={2}>
+              {provider.bio}
+            </Text>
           </View>
         </View>
-        <Text style={styles.reviewText}>{r.text}</Text>
-      </View>
-    ))}
+      </>
+    )}
   </View>
 );
 
-const GuestsTab = ({ styles }) => (
-  <View>
-    <Text style={styles.sectionLabel}>Confirmed Influencers</Text>
-    <View style={styles.guestGrid}>
-      {STATIC_INFLUENCERS.map((g) => (
-        <View key={g.id} style={styles.guestCard}>
-          <Image source={{ uri: g.avatar }} style={styles.guestAvatar} />
-          <Text style={styles.guestName}>{g.name}</Text>
-          <Text style={styles.guestFollowers}>{g.followers} followers</Text>
+const ReviewsTab = ({ styles, reviews, service }) => {
+  const avg = service?.rating || 0;
+  const count = service?.reviewCount || reviews.length;
+  const roundedStars = Math.round(avg);
+  return (
+    <View>
+      <View style={styles.ratingSummary}>
+        <Text style={styles.ratingNumber}>
+          {avg ? avg.toFixed(1) : '—'}
+        </Text>
+        <View style={{ marginLeft: 12 }}>
+          <Stars count={roundedStars} />
+          <Text style={styles.ratingCount}>
+            Based on {count} review{count === 1 ? '' : 's'}
+          </Text>
         </View>
-      ))}
+      </View>
+
+      {reviews.length === 0 ? (
+        <Text style={[styles.bodyText, { paddingVertical: 12 }]}>
+          No reviews yet for this service.
+        </Text>
+      ) : (
+        reviews.map((r) => (
+          <View key={r.id} style={styles.reviewCard}>
+            <View style={styles.reviewHeader}>
+              <Image source={{ uri: r.takerAvatar }} style={styles.reviewAvatar} />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={styles.reviewName}>{r.takerName}</Text>
+                <Stars count={r.stars || 0} />
+              </View>
+            </View>
+            <Text style={styles.reviewText}>{r.text}</Text>
+          </View>
+        ))
+      )}
     </View>
-  </View>
-);
+  );
+};
+
+const ProviderTab = ({ styles, provider }) => {
+  if (!provider) {
+    return (
+      <Text style={[styles.bodyText, { paddingVertical: 12 }]}>
+        Provider information unavailable.
+      </Text>
+    );
+  }
+  return (
+    <View>
+      <View style={styles.organizerRow}>
+        <Image
+          source={{
+            uri: provider.profilePic || 'https://i.pravatar.cc/100?u=provider',
+          }}
+          style={styles.organizerAvatar}
+        />
+        <View style={{ marginLeft: 12, flex: 1 }}>
+          <Text style={styles.organizerName}>{provider.fullName}</Text>
+          <Text style={styles.organizerTagline}>
+            ★ {provider.rating?.toFixed?.(1) || '—'} · {provider.completedJobs || 0} completed jobs
+          </Text>
+        </View>
+        {provider.verified && (
+          <View style={styles.followBtn}>
+            <Text style={styles.followBtnText}>Verified</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={[styles.sectionLabel, { marginTop: 24 }]}>About</Text>
+      <Text style={styles.bodyText}>{provider.bio || 'No bio provided.'}</Text>
+
+      {Array.isArray(provider.serviceAreas) && provider.serviceAreas.length > 0 && (
+        <>
+          <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Service areas</Text>
+          <View style={styles.chipRow}>
+            {provider.serviceAreas.map((a) => (
+              <View key={a} style={styles.chip}>
+                <Text style={styles.chipText}>{a}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      )}
+
+      {!!provider.phone && (
+        <>
+          <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Contact</Text>
+          <Text style={styles.bodyText}>{provider.phone}</Text>
+        </>
+      )}
+    </View>
+  );
+};
 
 export default function ServiceDetails() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { colors } = useTheme();
+  const { user } = useAuth();
   const styles = makeStyles(colors);
 
-  const event = {
-    eventName: params.eventName || 'Sample Event',
-    eventDateTime: params.eventDateTime || 'Fri, Dec 20 — 12:00 - 15:00',
-    location: params.location || 'Green Park, New York',
-    image: params.image || 'https://picsum.photos/seed/fallback/800/600',
-  };
+  const serviceId = params.id;
+  const { service, provider, reviews, loading } = useServiceDetail(serviceId);
 
   const [tab, setTab] = useState('details');
   const [bookingVisible, setBookingVisible] = useState(false);
 
-  const bookingPayload = {
-    title: 'Booking Request Sent',
-    provider: STATIC_DETAILS.organizer.name,
-    subtitle: `Your request has been sent to ${STATIC_DETAILS.organizer.name}. They will review your request and reply shortly in chat.`,
-    dateLabel: event.eventDateTime,
-    serviceLabel: event.eventName,
-    locationLabel: event.location,
+  const fallbackImage = useMemo(
+    () => `https://picsum.photos/seed/${serviceId || 'service'}/800/600`,
+    [serviceId],
+  );
+
+  const scheduleLabel = formatScheduleLabel(service);
+
+  const bookingPayload = service && provider
+    ? {
+        title: 'Booking Request Sent',
+        provider: provider.fullName,
+        subtitle: `Your request has been sent to ${provider.fullName}. They will review and reply shortly in chat.`,
+        dateLabel: scheduleLabel,
+        serviceLabel: service.title,
+        locationLabel: service.location,
+      }
+    : null;
+
+  const handleBookingPress = async () => {
+    if (!service || !provider || !user?.uid) {
+      setBookingVisible(true);
+      return;
+    }
+    saveBookingForUser(user.uid, {
+      providerId: provider.id,
+      providerName: provider.fullName,
+      serviceId: service.id,
+      serviceTitle: service.title,
+      status: 'pending',
+      price: service.basePrice,
+      location: service.location,
+    }).catch(() => {});
+    setBookingVisible(true);
+  };
+
+  const handleChatPress = () => {
+    if (!provider) return;
+    const peerId = provider.id;
+    const sessionId = peerChatSessionId(user?.uid || 'guest', peerId);
+    router.push({
+      pathname: '/chat/[sessionId]',
+      params: {
+        sessionId,
+        peerId,
+        peerName: provider.fullName,
+        peerAvatar: provider.profilePic,
+        serviceLabel: service?.title,
+      },
+    });
   };
 
   const renderTabContent = () => {
+    if (loading) {
+      return <ActivityIndicator color={colors.accent} style={{ paddingVertical: 24 }} />;
+    }
     switch (tab) {
       case 'details':
-        return <DetailsTab styles={styles} />;
+        return <DetailsTab styles={styles} service={service} provider={provider} />;
       case 'reviews':
-        return <ReviewsTab styles={styles} />;
-      case 'guests':
-        return <GuestsTab styles={styles} />;
+        return <ReviewsTab styles={styles} reviews={reviews} service={service} />;
+      case 'provider':
+        return <ProviderTab styles={styles} provider={provider} />;
       default:
         return null;
     }
   };
 
+  const headerImage = service?.image || fallbackImage;
+  const title = service?.title || 'Service';
+  const location = service?.location || '';
+
   return (
     <SafeAreaView style={styles.area} edges={['top']}>
       <Header
-        title="Event Details"
+        title="Service Details"
         customStyles={styles.headerOverride}
         customTextStyles={styles.headerTitleOverride}
         iconColor={PALETTE.white}
@@ -206,7 +286,7 @@ export default function ServiceDetails() {
         showsVerticalScrollIndicator={false}
       >
         <ImageBackground
-          source={{ uri: event.image }}
+          source={{ uri: headerImage }}
           style={styles.backgroundImage}
           resizeMode="cover"
         >
@@ -214,15 +294,17 @@ export default function ServiceDetails() {
           <View style={styles.cardContainer}>
             <View style={styles.contentContainer}>
               <Text style={styles.fullName} numberOfLines={2}>
-                {event.eventName}
+                {title}
               </Text>
-              <Text style={styles.dateText}>{event.eventDateTime}</Text>
-              <View style={styles.locationContainer}>
-                <FontAwesome name="map-marker" size={14} color={PALETTE.golden} />
-                <Text style={styles.locationText} numberOfLines={2}>
-                  {event.location}
-                </Text>
-              </View>
+              <Text style={styles.dateText}>{scheduleLabel}</Text>
+              {!!location && (
+                <View style={styles.locationContainer}>
+                  <FontAwesome name="map-marker" size={14} color={PALETTE.golden} />
+                  <Text style={styles.locationText} numberOfLines={2}>
+                    {location}
+                  </Text>
+                </View>
+              )}
             </View>
             <TouchableOpacity style={styles.buttonActionRight}>
               <Ionicons name="calendar-outline" size={20} color={PALETTE.golden} />
@@ -244,20 +326,37 @@ export default function ServiceDetails() {
 
         <View style={styles.tabContent}>{renderTabContent()}</View>
 
-        <TouchableOpacity style={styles.cta} onPress={() => setBookingVisible(true)}>
-          <Text style={styles.ctaText}>Reserve Spot</Text>
-        </TouchableOpacity>
+        <View style={styles.ctaRow}>
+          <TouchableOpacity
+            style={styles.ctaSecondary}
+            onPress={handleChatPress}
+            disabled={!provider}
+          >
+            <Ionicons name="chatbubbles-outline" size={18} color={PALETTE.golden} />
+            <Text style={styles.ctaSecondaryText}>Chat</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.ctaPrimary}
+            onPress={handleBookingPress}
+            disabled={!service}
+          >
+            <Text style={styles.ctaText}>Book Now</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
-      <BookingConfirmationFlow
-        visible={bookingVisible}
-        onClose={() => setBookingVisible(false)}
-        onViewBooking={() => {
-          setBookingVisible(false);
-          router.push('/(tabs)/bookings');
-        }}
-        booking={bookingPayload}
-      />
+      {bookingPayload && (
+        <BookingConfirmationFlow
+          visible={bookingVisible}
+          onClose={() => setBookingVisible(false)}
+          onViewBooking={() => {
+            setBookingVisible(false);
+            router.push('/(tabs)/bookings');
+          }}
+          booking={bookingPayload}
+        />
+      )}
     </SafeAreaView>
   );
 }

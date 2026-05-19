@@ -4,6 +4,7 @@ import {
   doc,
   getCountFromServer,
   getDoc,
+  getDocs,
   query,
   serverTimestamp,
   setDoc,
@@ -50,4 +51,19 @@ export const getFavouritesCountByUser = async (uid) => {
   const q = query(collection(db, 'favourites'), where('userId', '==', uid));
   const snap = await getCountFromServer(q);
   return snap.data().count;
+};
+
+export const getFavouritesForUser = async (uid) => {
+  if (!uid) return [];
+  const q = query(collection(db, 'favourites'), where('userId', '==', uid));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      id: d.id,
+      itemId: data.itemId,
+      itemData: data.itemData || {},
+      createdAt: data.createdAt,
+    };
+  });
 };
