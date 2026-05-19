@@ -66,7 +66,61 @@ export const makeStyles = (colors) =>
     emptyText: {
       ...FONTS.body,
       color: colors.textSecondary,
-      paddingVertical: 32,
+      paddingVertical: 16,
       textAlign: 'center',
+    },
+    filterIconWrap: {
+      position: 'relative',
+      padding: 4,
+    },
+    filterDot: {
+      position: 'absolute',
+      top: 2,
+      right: 2,
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: PALETTE.golden,
+    },
+    activeFilterChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: PALETTE.golden,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 14,
+    },
+    activeFilterChipText: {
+      ...FONTS.small,
+      color: PALETTE.black,
+      fontWeight: '700',
+    },
+    clearAllChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    clearAllChipText: {
+      ...FONTS.small,
+      color: colors.textSecondary,
+      fontWeight: '600',
+    },
+    resultsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    emptyWrap: {
+      alignItems: 'center',
+      gap: 10,
+      paddingVertical: 32,
+    },
+    emptyAction: {
+      ...FONTS.bodyMedium,
+      color: PALETTE.golden,
+      fontWeight: '700',
     },
   });

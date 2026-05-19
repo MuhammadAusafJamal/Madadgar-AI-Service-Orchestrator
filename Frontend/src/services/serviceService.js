@@ -23,7 +23,30 @@ const inMemoryFilter = (items, search) => {
   );
 };
 
-export const getServices = async ({ categoryIds = [], search = '', max = 50 } = {}) => {
+const applySort = (items, sortBy) => {
+  switch (sortBy) {
+    case 'priceAsc':
+      return items.sort((a, b) => (a.basePrice || 0) - (b.basePrice || 0));
+    case 'priceDesc':
+      return items.sort((a, b) => (b.basePrice || 0) - (a.basePrice || 0));
+    case 'newest':
+      return items.sort(
+        (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+      );
+    case 'rating':
+    default:
+      return items.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  }
+};
+
+export const getServices = async ({
+  categoryIds = [],
+  search = '',
+  priceMin = null,
+  priceMax = null,
+  sortBy = 'rating',
+  max = 50,
+} = {}) => {
   const constraints = [];
   if (categoryIds.length === 1) {
     constraints.push(where('categoryId', '==', categoryIds[0]));
@@ -33,9 +56,18 @@ export const getServices = async ({ categoryIds = [], search = '', max = 50 } = 
   constraints.push(limit(max));
   const q = query(collection(db, 'services'), ...constraints);
   const snap = await getDocs(q);
-  const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  const filtered = inMemoryFilter(items, search);
-  return filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  let items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  items = inMemoryFilter(items, search);
+
+  if (priceMin !== null && !Number.isNaN(priceMin)) {
+    items = items.filter((s) => (s.basePrice || 0) >= priceMin);
+  }
+  if (priceMax !== null && !Number.isNaN(priceMax)) {
+    items = items.filter((s) => (s.basePrice || 0) <= priceMax);
+  }
+
+  return applySort(items, sortBy);
 };
 
 export const getServiceById = async (serviceId) => {
