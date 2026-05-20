@@ -13,7 +13,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Header from '@/src/components/Header';
 import { useAuth } from '@/src/context/AuthContext';
-import { useNotifications } from '@/src/context/NotificationsContext';
 import { useProviderDashboard } from '@/src/hooks/useProviderDashboard';
 import { getUserProfile } from '@/src/services/authService';
 import { peerChatSessionId } from '@/src/services/peerChatService';
@@ -37,7 +36,6 @@ export default function ProviderHomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { user, role } = useAuth();
-  const { unreadCount } = useNotifications();
   const styles = makeProviderStyles(colors);
 
   const [profile, setProfile] = useState(null);
@@ -111,9 +109,8 @@ export default function ProviderHomeScreen() {
           profileHeaderProps={{
             profileImage: avatarUri,
             username: firstName,
-            unreadNotificationCount: unreadCount || pending.length,
+            unreadNotificationCount: pending.length,
             onAvatarPress: () => router.push('/(tabs)/profile'),
-            onBellPress: () => router.push('/notifications'),
           }}
         />
 

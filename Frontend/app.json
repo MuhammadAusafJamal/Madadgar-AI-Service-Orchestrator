@@ -44,19 +44,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/madadgar_favicon.png",
-          "color": "#FFC107"
-        }
       ]
     ],
-    "notification": {
-      "icon": "./assets/images/madadgar_favicon.png",
-      "color": "#FFC107"
-    },
     "extra": {
       "eas": {
         "projectId": "35ebb0ec-5201-4d02-a9c5-a4538d9d0380"

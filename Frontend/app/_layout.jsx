@@ -16,8 +16,6 @@ import { ThemeProvider, useTheme } from '@/src/theme';
 import SplashScreenVideo from '@/src/components/SplashScreenVideo';
 import OnboardingContainer from '@/src/screens/OnboardingContainer';
 import { AuthProvider } from '@/src/context/AuthContext';
-import { NotificationsProvider } from '@/src/context/NotificationsContext';
-import PushRegistrar from '@/src/hooks/usePushRegistration';
 
 export {
   ErrorBoundary,
@@ -53,9 +51,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <NotificationsProvider>
-          <PushRegistrar />
-          <SafeAreaProvider>
+        <SafeAreaProvider>
           {!splashFinished ? (
             <>
               <StatusBar hidden />
@@ -72,8 +68,7 @@ export default function RootLayout() {
           ) : (
             <RootLayoutNav />
           )}
-          </SafeAreaProvider>
-        </NotificationsProvider>
+        </SafeAreaProvider>
       </AuthProvider>
     </ThemeProvider>
   );

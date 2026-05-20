@@ -3,7 +3,6 @@ import {
   collection,
   doc,
   getCountFromServer,
-  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -12,7 +11,6 @@ import {
 } from 'firebase/firestore';
 
 import { db } from './firebaseService';
-import { sendPushToUser } from './pushService';
 
 const sortByScheduledAsc = (items) =>
   items.sort(
@@ -32,17 +30,6 @@ export const saveBookingForUser = async (uid, booking) => {
     status: booking.status || 'pending',
     createdAt: serverTimestamp(),
   });
-
-  // Push the new request to the provider. Fire-and-forget — we don't want a
-  // failed notification to block the booking flow.
-  if (booking.providerId) {
-    sendPushToUser(booking.providerId, {
-      title: 'New booking request',
-      body: `${booking.serviceTitle || 'A new service'} request${booking.location ? ` in ${booking.location}` : ''}.`,
-      data: { type: 'booking_requested', bookingId: ref.id },
-    }).catch(() => {});
-  }
-
   return ref.id;
 };
 
@@ -115,28 +102,10 @@ export const getWeekEarningsForProvider = async (providerId) => {
 
 export const acceptBooking = async (bookingId) => {
   if (!bookingId) return;
-  const ref = doc(db, 'bookings', bookingId);
-  await updateDoc(ref, {
+  await updateDoc(doc(db, 'bookings', bookingId), {
     status: 'accepted',
     updatedAt: serverTimestamp(),
   });
-
-  // Notify the taker that their request was accepted.
-  try {
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data.takerId) {
-        sendPushToUser(data.takerId, {
-          title: 'Booking accepted',
-          body: `${data.providerName || 'Your provider'} accepted your ${data.serviceTitle || 'service'} booking.`,
-          data: { type: 'booking_accepted', bookingId },
-        }).catch(() => {});
-      }
-    }
-  } catch (_) {
-    // ignore — booking was accepted; notification is best-effort
-  }
 };
 
 export const declineBooking = async (bookingId) => {

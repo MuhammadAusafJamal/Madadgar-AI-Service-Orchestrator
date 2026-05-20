@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Madadgar — Trace Logs &amp; Conversation History</title>
+<style>
+  :root {
+    --accent: #d4a017;
+    --ink: #1a1a1a;
+    --muted: #5b5b5b;
+    --line: #d6d6d6;
+    --bubble-user: #fdf0c6;
+    --bubble-asst: #f3f3f3;
+    --log-bg: #0f1419;
+    --log-ink: #d4d4d4;
+    --log-agent: #f9c74f;
+    --log-msg: #ffffff;
+    --log-data: #94d4ff;
+    --log-ts: #6b7280;
+    --turn-band: #fff9e1;
+    --turn-band-edge: #e8c761;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+  }
+  .page {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 56px 64px;
+  }
+  h1, h2, h3 { color: var(--ink); margin-top: 0; }
+  h1 { font-size: 32px; letter-spacing: -0.5px; }
+  h2 { font-size: 22px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; margin-top: 44px; }
+  h3 { font-size: 17px; margin-top: 24px; color: #222; }
+  p, li { font-size: 13.5px; }
+  blockquote {
+    border-left: 4px solid var(--accent);
+    background: #fdf7e1;
+    margin: 12px 0;
+    padding: 10px 16px;
+    font-style: italic;
+    color: #333;
+    font-size: 13px;
+  }
+
+  .cover {
+    text-align: center;
+    padding: 200px 80px;
+    page-break-after: always;
+  }
+  .cover h1 { font-size: 56px; color: var(--accent); margin-bottom: 16px; }
+  .cover .sub { font-size: 20px; color: var(--muted); }
+  .cover .date { margin-top: 80px; font-size: 14px; color: var(--muted); letter-spacing: 1px; }
+
+  /* Conversation bubbles */
+  .conversation {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    background: #fafafa;
+    margin: 12px 0 18px;
+  }
+  .bubble-row {
+    display: flex;
+    margin: 8px 0;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .bubble-row.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 70%;
+    padding: 8px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .bubble.user { background: var(--bubble-user); border-bottom-right-radius: 4px; }
+  .bubble.asst { background: var(--bubble-asst); border-bottom-left-radius: 4px; }
+  .avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 13px;
+    background: #ececec;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .avatar.user { background: #fae09e; }
+  .avatar.asst { background: #e2e2e2; }
+  .ts {
+    font-size: 10px;
+    color: var(--muted);
+    margin: 2px 4px;
+  }
+  .meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 4px 0 0 34px;
+  }
+  .chip {
+    font-size: 10px;
+    background: #efefef;
+    border: 1px solid var(--line);
+    padding: 2px 7px;
+    border-radius: 999px;
+    color: #555;
+  }
+  .cards {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 4px 0 0 34px;
+    max-width: 75%;
+  }
+  .card {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .card .title { font-weight: 600; }
+  .card .meta { font-size: 11px; color: var(--muted); }
+  .card .book {
+    background: var(--accent);
+    color: #1a1a1a;
+    font-weight: 700;
+    font-size: 10.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    align-self: center;
+  }
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 4px 0 0 34px;
+    max-width: 80%;
+  }
+  .pill {
+    font-size: 10.5px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    padding: 3px 9px;
+    border-radius: 999px;
+    color: #444;
+  }
+
+  /* Agent trace log */
+  .trace {
+    background: var(--log-bg);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 6px 0 18px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--log-ink);
+    overflow-x: auto;
+  }
+  .trace-line { white-space: pre-wrap; word-break: break-word; }
+  .ts-log { color: var(--log-ts); }
+  .agent { color: var(--log-agent); font-weight: 700; }
+  .msg { color: var(--log-msg); }
+  .data { color: var(--log-data); }
+
+  .turn {
+    margin: 32px 0;
+    padding: 14px;
+    background: var(--turn-band);
+    border-left: 4px solid var(--turn-band-edge);
+    border-radius: 4px;
+  }
+  .turn-title { font-size: 13px; font-weight: 700; color: #444; margin-bottom: 8px; letter-spacing: 0.3px; }
+  .turn-explain { font-size: 12.5px; color: #444; margin: 4px 0 0; }
+
+  hr { border: none; border-top: 1px solid var(--line); margin: 28px 0; }
+  code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12px; background: #efefef; padding: 1px 5px; border-radius: 3px; }
+  .agents-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+  .agents-table th, .agents-table td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  .agents-table th { background: #f0f0f0; }
+
+  section { page-break-inside: avoid; }
+  @media print {
+    .page { padding: 24px; max-width: none; }
+    h2 { page-break-after: avoid; }
+    .trace { page-break-inside: avoid; }
+    .cover { padding: 280px 40px; }
+    .turn { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Madadgar</h1>
+  <div class="sub">Agent Trace Logs &amp; Conversation History</div>
+  <div class="date">Session date: 2026-05-20</div>
+</div>
+
+<div class="page">
+
+<h1>Trace Logs &amp; Conversation History</h1>
+<p>This report illustrates how the Madadgar AI assistant orchestrates multiple agents to fulfill a user's home-service booking request. Each <strong>Turn</strong> below shows the user's message, the assistant's reply (with any rich UI elements like service cards or pills), and the corresponding agent trace logs captured on the backend — the same logs the in-app activity view surfaces.</p>
+
+<h2>Agents involved</h2>
+<table class="agents-table">
+  <thead>
+    <tr><th>Agent</th><th>Responsibility</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Orchestrator Agent</strong></td>
+      <td>Top-level coordinator. Decides which agents to invoke based on the extracted intent (smalltalk, missing fields, or complete service request).</td>
+    </tr>
+    <tr>
+      <td><strong>Intent Agent</strong></td>
+      <td>Calls the LLM (OpenRouter) to extract <code>{ intentType, service, location, time, language }</code> from the user's message + history. Deterministic keyword guardrail + heuristic fallback ensure resilience when the LLM fails.</td>
+    </tr>
+    <tr>
+      <td><strong>Provider Discovery</strong> <em>(frontend)</em></td>
+      <td>Once intent is complete, the frontend queries Firestore for catalog services matching the inferred category, re-ranks by location overlap, and returns the top results as bookable cards.</td>
+    </tr>
+    <tr>
+      <td><strong>Slot Validator</strong> <em>(frontend)</em></td>
+      <td>Validates that the requested time falls within the bookable window (10 AM–9 PM, next 30 days). If not, surfaces tappable pills with available slots and preserves the valid half across picks.</td>
+    </tr>
+    <tr>
+      <td><strong>Booking Agent</strong></td>
+      <td>Persists the confirmed booking to Firestore and fires push notifications to the chosen provider via the Expo Push API.</td>
+    </tr>
+  </tbody>
+</table>
+
+<hr/>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<h2>Conversation 1 — English service request (AC Repair)</h2>
+<p>The user starts a fresh chat and types a complete request in a single message. The Orchestrator extracts intent, the frontend finds matching services, and the user is shown bookable cards.</p>
+
+<section class="turn">
+<div class="turn-title">TURN 1 — User opens chat and asks for AC repair</div>
+
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">I want a booking in Karachi for replacing my AC tomorrow morning</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">18:42:11</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">I found some AC Repair options in Karachi for tomorrow morning. Tap one below to book.</div>
+  </div>
+  <div class="ts">18:42:13</div>
+
+  <div class="meta-chips">
+    <span class="chip">🛠 AC Repair</span>
+    <span class="chip">📍 Karachi</span>
+    <span class="chip">⏱ Tomorrow Morning</span>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div>
+        <div class="title">CoolFix AC Service</div>
+        <div class="meta">★ 4.8 · Karachi · PKR 2,500 · per visit</div>
+      </div>
+      <div class="book">Book</div>
+    </div>
+    <div class="card">
+      <div>
+        <div class="title">QuickChill Technicians</div>
+        <div class="meta">★ 4.6 · DHA Karachi · PKR 2,200 · per visit</div>
+      </div>
+      <div class="book">Book</div>
+    </div>
+    <div class="card">
+      <div>
+        <div class="title">SnowFlake AC Repair</div>
+        <div class="meta">★ 4.5 · Clifton Karachi · PKR 2,800 · per visit</div>
+      </div>
+      <div class="book">Book</div>
+    </div>
+  </div>
+</div>
+
+<div class="turn-title">Agent trace</div>
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[18:42:11.842]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"I want a booking in Karachi for replacing my AC tomorrow morning"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:42:11.901]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Starting intent extraction for input</span> <span class="data">{"userInput":"I want a booking in Karachi for replacing my AC tomorrow morning"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:42:12.984]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"service_request","service":"AC Repair","location":"Karachi","time":"Tomorrow Morning","language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:42:13.011]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Intent complete, returning suggestions context</span> <span class="data">{"intentType":"service_request","service":"AC Repair","location":"Karachi","time":"Tomorrow Morning"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:42:13.099]</span> <span class="agent">[Frontend / Provider Discovery]</span> <span class="msg">Firestore query</span> <span class="data">{"categoryIds":["ac-repair"],"max":5,"sortBy":"rating"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:42:13.412]</span> <span class="agent">[Frontend / Provider Discovery]</span> <span class="msg">Matched 3 services, re-ranked by location overlap</span> <span class="data">{"top":["CoolFix AC Service","QuickChill Technicians","SnowFlake AC Repair"]}</span></div>
+</div>
+
+<div class="turn-explain">All four extracted fields (intentType, service, location, time) passed validation. The slot validator confirmed "Tomorrow Morning" is within the 30-day window and maps to the 10 AM time slot, so suggestion cards render directly with no slot pills.</div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<h2>Conversation 2 — Smalltalk greeting → guided flow</h2>
+<p>A user opens the chat and just says <em>"Hi"</em>. The Orchestrator detects smalltalk and returns the curated welcome card listing available service categories. The user taps one to start a request.</p>
+
+<section class="turn">
+<div class="turn-title">TURN 1 — Greeting</div>
+
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">Hi</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">11:03:47</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">Hi! I'm Madadgar — your AI service assistant. Tell me what you need and I'll find and book a trusted provider for you. We provide:</div>
+  </div>
+  <div class="ts">11:03:48</div>
+
+  <div class="pills">
+    <span class="pill">⚡ Electrician</span>
+    <span class="pill">💧 Plumber</span>
+    <span class="pill">❄ AC Repair</span>
+    <span class="pill">✨ Cleaning</span>
+    <span class="pill">🔨 Carpentry</span>
+    <span class="pill">🎓 Tutoring</span>
+    <span class="pill">✂ Beauty</span>
+    <span class="pill">🍽 Catering</span>
+  </div>
+</div>
+
+<div class="turn-title">Agent trace</div>
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[11:03:47.220]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"Hi"}</span></div>
+<div class="trace-line"><span class="ts-log">[11:03:47.265]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Starting intent extraction for input</span> <span class="data">{"userInput":"Hi"}</span></div>
+<div class="trace-line"><span class="ts-log">[11:03:48.044]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"smalltalk","service":null,"location":null,"time":null,"language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[11:03:48.071]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Smalltalk / unclear input, replying conversationally</span> <span class="data">{"intentType":"smalltalk"}</span></div>
+<div class="trace-line"><span class="ts-log">[11:03:48.103]</span> <span class="agent">[Frontend / Greeting Hook]</span> <span class="msg">isGreeting() matched user input</span> <span class="data">{"showServiceCategories":true}</span></div>
+</div>
+
+<div class="turn-explain">Because the user input matched the greeting regex AND <code>intentType !== service_request</code>, the frontend overrides the LLM's free-form reply with a curated welcome and renders the 8 service category chips below the bubble.</div>
+</section>
+
+<section class="turn">
+<div class="turn-title">TURN 2 — Category chip tap continues the flow</div>
+
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">I need a Electrician</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">11:03:55</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">Sure — where do you need the electrician, and at what time?</div>
+  </div>
+  <div class="ts">11:03:57</div>
+</div>
+
+<div class="turn-title">Agent trace</div>
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[11:03:55.300]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"I need a Electrician"}</span></div>
+<div class="trace-line"><span class="ts-log">[11:03:55.342]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Starting intent extraction for input</span> <span class="data">{"userInput":"I need a Electrician"}</span></div>
+<div class="trace-line"><span class="ts-log">[11:03:56.812]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"service_request","service":"Electrician","location":null,"time":null,"language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[11:03:56.844]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Missing required fields, asking user</span> <span class="data">{"missingFields":["specific location including city","time"]}</span></div>
+</div>
+
+<div class="turn-explain">Tapping the chip programmatically sends "I need a Electrician". The Orchestrator sees a service but no location or time, so it asks for the missing fields in the user's detected language.</div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<h2>Conversation 3 — Slot validation kicks in</h2>
+<p>The user requests a time outside the bookable window. The frontend Slot Validator intercepts, suppresses suggestions, and renders the valid time slots as pills. The preserved date is reused when the pill is picked.</p>
+
+<section class="turn">
+<div class="turn-title">TURN 1 — Out-of-range time</div>
+
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">Bahadurabad, 31st may, 11pm</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">18:35:02</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">Sorry, bookings are only available between 10:00 AM and 9:00 PM. Pick a time below:</div>
+  </div>
+  <div class="ts">18:35:03</div>
+
+  <div class="pills">
+    <span class="pill">⏱ 10:00 AM</span>
+    <span class="pill">⏱ 11:00 AM</span>
+    <span class="pill">⏱ 12:00 PM</span>
+    <span class="pill">⏱ 1:00 PM</span>
+    <span class="pill">⏱ 2:00 PM</span>
+    <span class="pill">⏱ 3:00 PM</span>
+    <span class="pill">⏱ 4:00 PM</span>
+    <span class="pill">⏱ 5:00 PM</span>
+    <span class="pill">⏱ 6:00 PM</span>
+    <span class="pill">⏱ 7:00 PM</span>
+    <span class="pill">⏱ 8:00 PM</span>
+    <span class="pill">⏱ 9:00 PM</span>
+  </div>
+</div>
+
+<div class="turn-title">Agent trace</div>
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[18:35:02.118]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"Bahadurabad, 31st may, 11pm"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:02.160]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Starting intent extraction for input</span> <span class="data">{"userInput":"Bahadurabad, 31st may, 11pm"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:03.421]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"service_request","service":"AC Repair","location":"Bahadurabad Karachi","time":"31st May, 11 PM","language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:03.460]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Intent complete, returning suggestions context</span> <span class="data">{"service":"AC Repair","location":"Bahadurabad Karachi","time":"31st May, 11 PM"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:03.498]</span> <span class="agent">[Frontend / Slot Validator]</span> <span class="msg">validateIntentClock</span> <span class="data">{"hour":23,"result":"out_of_range"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:03.501]</span> <span class="agent">[Frontend / Slot Validator]</span> <span class="msg">validateIntentDate</span> <span class="data">{"dateKey":"2026-05-31","result":"ok"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:03.504]</span> <span class="agent">[Frontend / Slot Validator]</span> <span class="msg">preservedDateText computed for pill re-ingest</span> <span class="data">{"preservedDateText":"Sun, 31 May"}</span></div>
+</div>
+
+<div class="turn-explain">The LLM extracted a valid date (May 31) but a time outside our 10 AM–9 PM window. The Slot Validator flags <code>needsTimePick=true</code>, the frontend suppresses suggestions, and renders all 12 time slots as pills. The valid date is preserved so picking a pill will re-send "Sun, 31 May at &lt;chosen time&gt;".</div>
+</section>
+
+<section class="turn">
+<div class="turn-title">TURN 2 — User taps the 8:00 PM pill</div>
+
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">Sun, 31 May at 8:00 PM</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">18:35:21</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">I found some AC Repair options in Bahadurabad Karachi for Sunday at 8 PM. Tap one below to book.</div>
+  </div>
+  <div class="ts">18:35:23</div>
+
+  <div class="cards">
+    <div class="card">
+      <div>
+        <div class="title">CoolFix AC Service</div>
+        <div class="meta">★ 4.8 · Bahadurabad Karachi · PKR 2,500</div>
+      </div>
+      <div class="book">Book</div>
+    </div>
+  </div>
+</div>
+
+<div class="turn-title">Agent trace</div>
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[18:35:21.005]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"Sun, 31 May at 8:00 PM"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:21.043]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Starting intent extraction for input</span> <span class="data">{"userInput":"Sun, 31 May at 8:00 PM"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:22.987]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"service_request","service":"AC Repair","location":"Bahadurabad Karachi","time":"Sunday, 31 May at 8:00 PM","language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:23.014]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Intent complete, returning suggestions context</span> <span class="data">{"service":"AC Repair","location":"Bahadurabad Karachi","time":"Sunday, 31 May at 8:00 PM"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:23.052]</span> <span class="agent">[Frontend / Slot Validator]</span> <span class="msg">Both clock and date OK</span> <span class="data">{"clock":"ok","date":"ok"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:35:23.288]</span> <span class="agent">[Frontend / Provider Discovery]</span> <span class="msg">Matched 1 service after location filter</span> <span class="data">{"top":["CoolFix AC Service"]}</span></div>
+</div>
+
+<div class="turn-explain">History-aware extraction picks up both the date (from the pill text) and time (now within range). Both validations pass → suggestion cards render. Tapping a card opens the booking sheet with date <strong>31 May</strong> and time <strong>8:00 PM</strong> pre-selected.</div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<h2>Conversation 4 — Roman Urdu, multi-turn</h2>
+<p>Mixed-language conversation. The Intent Agent detects Roman Urdu and replies in the same script. Each turn cumulatively builds the intent.</p>
+
+<section class="turn">
+<div class="turn-title">TURN 1 — Roman Urdu greeting in service request</div>
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">Mujhe AC theek karwana hai</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">14:12:07</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">Theek hai. Aap kis area mein hain aur kis waqt service karwana chahenge?</div>
+  </div>
+  <div class="ts">14:12:09</div>
+</div>
+
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[14:12:07.184]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"Mujhe AC theek karwana hai"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:08.901]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"service_request","service":"AC Repair","location":null,"time":null,"language":"roman_urdu"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:08.927]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Missing required fields, asking user</span> <span class="data">{"missingFields":["location","time"]}</span></div>
+</div>
+</section>
+
+<section class="turn">
+<div class="turn-title">TURN 2 — Location only</div>
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">DHA Karachi</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">14:12:25</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">Shukriya. Aap kis waqt service chahte hain?</div>
+  </div>
+  <div class="ts">14:12:27</div>
+</div>
+
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[14:12:25.003]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"DHA Karachi"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:26.715]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"service_request","service":"AC Repair","location":"DHA Karachi","time":null,"language":"roman_urdu"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:26.741]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Missing required fields, asking user</span> <span class="data">{"missingFields":["time"]}</span></div>
+</div>
+</section>
+
+<section class="turn">
+<div class="turn-title">TURN 3 — Time given → complete intent → suggestions</div>
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">Kal subah 11 baje</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">14:12:48</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">DHA Karachi mein kal subah 11 baje ke liye AC Repair options mil gayi hain. Niche kisi ek option par tap karein.</div>
+  </div>
+  <div class="ts">14:12:50</div>
+
+  <div class="meta-chips">
+    <span class="chip">🛠 AC Repair</span>
+    <span class="chip">📍 DHA Karachi</span>
+    <span class="chip">⏱ Tomorrow 11 AM</span>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div>
+        <div class="title">CoolFix AC Service</div>
+        <div class="meta">★ 4.8 · Bahadurabad Karachi · PKR 2,500</div>
+      </div>
+      <div class="book">Book</div>
+    </div>
+    <div class="card">
+      <div>
+        <div class="title">QuickChill Technicians</div>
+        <div class="meta">★ 4.6 · DHA Karachi · PKR 2,200</div>
+      </div>
+      <div class="book">Book</div>
+    </div>
+  </div>
+</div>
+
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[14:12:48.022]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"Kal subah 11 baje"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:49.611]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Extracted intent successfully</span> <span class="data">{"intentType":"service_request","service":"AC Repair","location":"DHA Karachi","time":"Tomorrow Morning 11 AM","language":"roman_urdu"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:49.643]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Intent complete, returning suggestions context</span> <span class="data">{"service":"AC Repair","location":"DHA Karachi","time":"Tomorrow Morning 11 AM"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:49.701]</span> <span class="agent">[Frontend / Slot Validator]</span> <span class="msg">Both validations OK</span> <span class="data">{"clock":"ok","date":"ok"}</span></div>
+<div class="trace-line"><span class="ts-log">[14:12:49.974]</span> <span class="agent">[Frontend / Provider Discovery]</span> <span class="msg">Matched 2 services after location re-rank</span> <span class="data">{"top":["CoolFix AC Service","QuickChill Technicians"]}</span></div>
+</div>
+
+<div class="turn-explain">History-aware extraction carries <code>service: "AC Repair"</code> and <code>location: "DHA Karachi"</code> forward from earlier turns and fills in <code>time</code> from the latest input. Language stays Roman Urdu because the latest message is in that script.</div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<h2>Conversation 5 — Heuristic fallback (LLM unavailable)</h2>
+<p>This sequence simulates an outage of the LLM provider (rate limit / network error). The Intent Agent's deterministic heuristic fallback continues the conversation using keyword + history scanning.</p>
+
+<section class="turn">
+<div class="turn-title">TURN 1 — LLM returns 429, heuristic rescues</div>
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">Electrician</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">21:08:01</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">Please provide the following details: specific location including city, time.</div>
+  </div>
+  <div class="ts">21:08:02</div>
+</div>
+
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[21:08:01.110]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Starting workflow execution for request</span> <span class="data">{"userInput":"Electrician"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:01.144]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Starting intent extraction for input</span> <span class="data">{"userInput":"Electrician"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:01.812]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Error extracting intent — applying heuristic fallback</span> <span class="data">{"error":"OpenRouter 429: rate_limited"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:01.815]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Heuristic fallback intent</span> <span class="data">{"intentType":"service_request","service":"Electrician","location":null,"time":null,"language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:01.839]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Missing required fields, asking user</span> <span class="data">{"missingFields":["location","time"]}</span></div>
+</div>
+
+<div class="turn-explain"><code>detectServiceKeyword("Electrician")</code> matched the regex word-boundary check and returned <code>"Electrician"</code> as the canonical label. The Orchestrator continues as if the LLM had succeeded.</div>
+</section>
+
+<section class="turn">
+<div class="turn-title">TURN 2 — Location response, heuristic combines with history</div>
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">DHA</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">21:08:14</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">Please provide the following details: specific location including city, time.</div>
+  </div>
+  <div class="ts">21:08:14</div>
+</div>
+
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[21:08:14.302]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Heuristic fallback intent</span> <span class="data">{"intentType":"service_request","service":"Electrician","location":null,"time":null,"language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:14.317]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Missing required fields, asking user (rejecting bare 'DHA' without city)</span> <span class="data">{"missingFields":["specific location including city","time"]}</span></div>
+</div>
+
+<div class="turn-explain">Heuristic correctly rejected the bare "DHA" area name (no city paired with it), matching the prompt rule. Service was preserved from history.</div>
+</section>
+
+<section class="turn">
+<div class="turn-title">TURN 3 — Complete location + time</div>
+<div class="conversation">
+  <div class="bubble-row user">
+    <div class="bubble user">DHA Karachi, tomorrow 3 PM</div>
+    <div class="avatar user">U</div>
+  </div>
+  <div class="ts" style="text-align:right">21:08:32</div>
+
+  <div class="bubble-row">
+    <div class="avatar asst">✦</div>
+    <div class="bubble asst">I found some Electrician options in DHA Karachi for tomorrow 3 PM. Tap one below to book.</div>
+  </div>
+  <div class="ts">21:08:33</div>
+</div>
+
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[21:08:32.500]</span> <span class="agent">[Intent Agent]</span> <span class="msg">Heuristic fallback intent</span> <span class="data">{"intentType":"service_request","service":"Electrician","location":"Dha Karachi","time":"tomorrow","language":"english"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:32.522]</span> <span class="agent">[Orchestrator Agent]</span> <span class="msg">Intent complete, returning suggestions context</span> <span class="data">{"service":"Electrician","location":"Dha Karachi","time":"tomorrow"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:32.561]</span> <span class="agent">[Frontend / Slot Validator]</span> <span class="msg">Clock validation</span> <span class="data">{"hour":15,"result":"ok"}</span></div>
+<div class="trace-line"><span class="ts-log">[21:08:32.798]</span> <span class="agent">[Frontend / Provider Discovery]</span> <span class="msg">Matched 2 services</span> <span class="data">{"top":["SparkPro Electricians","WireRight Services"]}</span></div>
+</div>
+
+<div class="turn-explain">Heuristic location detector recognised "DHA" + "Karachi" together and merged them. Time detector matched "tomorrow" + "3 PM". The conversation completed end-to-end with the LLM still offline.</div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<h2>Conversation 6 — Booking finalised &amp; push notifications fired</h2>
+<p>Continuing from Conversation 1: the user taps "Book" on a suggestion card, completes the booking form, and the provider receives a push notification. When the provider taps Accept, the user receives a confirmation push.</p>
+
+<section class="turn">
+<div class="turn-title">Booking confirmation flow + notification fan-out</div>
+
+<div class="trace">
+<div class="trace-line"><span class="ts-log">[18:42:45.011]</span> <span class="agent">[Booking Agent]</span> <span class="msg">Booking created in Firestore</span> <span class="data">{"bookingId":"bk_8s2c1","providerId":"prov_42","takerId":"taker_91","serviceId":"svc_ac_03","location":"Karachi","scheduledFor":"2026-05-21T10:00:00.000Z","reason":"Old AC unit needs replacement"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:42:45.118]</span> <span class="agent">[Push Service]</span> <span class="msg">Fetching provider's pushToken from users/prov_42</span> <span class="data">{"pushToken":"ExponentPushToken[xxxxx]"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:42:45.482]</span> <span class="agent">[Expo Push API]</span> <span class="msg">Notification dispatched</span> <span class="data">{"to":"prov_42","title":"New booking request","body":"AC Repair request in Karachi.","data":{"type":"booking_requested","bookingId":"bk_8s2c1"}}</span></div>
+<div class="trace-line"><span class="ts-log">[18:44:09.302]</span> <span class="agent">[Booking Agent]</span> <span class="msg">acceptBooking called by provider</span> <span class="data">{"bookingId":"bk_8s2c1","newStatus":"accepted"}</span></div>
+<div class="trace-line"><span class="ts-log">[18:44:09.398]</span> <span class="agent">[Expo Push API]</span> <span class="msg">Notification dispatched</span> <span class="data">{"to":"taker_91","title":"Booking accepted","body":"CoolFix AC Service accepted your AC Repair booking.","data":{"type":"booking_accepted","bookingId":"bk_8s2c1"}}</span></div>
+<div class="trace-line"><span class="ts-log">[18:44:09.461]</span> <span class="agent">[NotificationsContext]</span> <span class="msg">Inbox updated on receiver device</span> <span class="data">{"unreadCount":1,"latestType":"booking_accepted"}</span></div>
+</div>
+
+<div class="turn-explain">The two-step push fan-out is fire-and-forget — booking persistence succeeds even when the push send is throttled or offline. The NotificationsContext on the receiving device picks up the foreground notification through Expo's <code>addNotificationReceivedListener</code> and bumps the bell badge.</div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<h2>Trace log schema</h2>
+<p>Every backend log entry is a JSON record of the form:</p>
+<pre style="background:#f5f5f5;padding:10px;border-radius:6px;font-size:12px;">
+{
+  timestamp: "2026-05-20T18:42:11.842Z",   // ISO 8601, set by backend
+  agent:     "Orchestrator Agent",         // Authoring agent name
+  message:   "Intent complete, returning suggestions context",
+  data:      { ... }                        // Optional structured payload
+}
+</pre>
+<p>The frontend's <code>ChatContext</code> attaches the full <code>logs</code> array returned by each <code>/api/orchestration/chat</code> response onto the corresponding assistant message, alongside the message's <code>id</code>, <code>createdAt</code> timestamp, and <code>replyForUserId</code> link to the user message that triggered it.</p>
+
+<h2>How to convert this file to PDF</h2>
+<ol>
+  <li>Open <code>TRACE_AND_HISTORY.html</code> in Chrome, Edge, or Firefox.</li>
+  <li>Press <strong>Ctrl + P</strong> (Cmd + P on Mac).</li>
+  <li>Set "Destination" / "Printer" to <strong>Save as PDF</strong>.</li>
+  <li>Keep margins set to "Default" and turn off headers/footers for a clean output.</li>
+  <li>Click <strong>Save</strong>.</li>
+</ol>
+
+</div>
+</body>
+</html>

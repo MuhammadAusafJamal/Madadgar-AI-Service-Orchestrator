@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Madadgar — Implementation Summary</title>
+<style>
+  :root {
+    --accent: #d4a017;
+    --ink: #1a1a1a;
+    --muted: #555;
+    --line: #d6d6d6;
+    --code-bg: #f5f5f5;
+    --added: #1f7a3a;
+    --removed: #a3260b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: var(--ink);
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+  }
+  .page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 56px 64px;
+  }
+  h1, h2, h3, h4 { color: var(--ink); margin-top: 0; }
+  h1 { font-size: 34px; letter-spacing: -0.5px; }
+  h2 { font-size: 22px; border-bottom: 2px solid var(--accent); padding-bottom: 4px; margin-top: 48px; }
+  h3 { font-size: 17px; margin-top: 28px; color: #222; }
+  h4 { font-size: 14px; color: var(--muted); margin: 16px 0 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  p, li { font-size: 13.5px; }
+  ul { padding-left: 22px; }
+  blockquote {
+    border-left: 4px solid var(--accent);
+    background: #fdf7e1;
+    margin: 12px 0;
+    padding: 10px 16px;
+    font-style: italic;
+    color: #333;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: ui-monospace, "SF Mono", Consolas, "Courier New", monospace;
+    font-size: 11.5px;
+    line-height: 1.45;
+    overflow-x: auto;
+    margin: 8px 0 14px;
+  }
+  code { font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 12px; background: #efefef; padding: 1px 5px; border-radius: 3px; }
+  pre code { background: transparent; padding: 0; }
+  .diff-add { color: var(--added); }
+  .diff-rem { color: var(--removed); text-decoration: line-through; }
+  .file { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #444; background: #ececec; padding: 2px 6px; border-radius: 3px; display: inline-block; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 13px; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0f0f0; }
+  .cover {
+    text-align: center;
+    padding: 200px 80px;
+    page-break-after: always;
+  }
+  .cover h1 { font-size: 56px; color: var(--accent); margin-bottom: 16px; }
+  .cover .sub { font-size: 20px; color: var(--muted); }
+  .cover .date { margin-top: 80px; font-size: 14px; color: var(--muted); letter-spacing: 1px; }
+  .toc a { color: var(--ink); text-decoration: none; }
+  .toc li { margin: 5px 0; }
+  section { page-break-inside: avoid; }
+  .request-label, .files-label, .change-label { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+  .files-list { font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: #333; }
+  hr { border: none; border-top: 1px solid var(--line); margin: 32px 0; }
+  @media print {
+    .page { padding: 24px; max-width: none; }
+    h2 { page-break-after: avoid; }
+    pre { page-break-inside: avoid; }
+    section { page-break-inside: auto; }
+    .cover { padding: 280px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>Madadgar</h1>
+  <div class="sub">AI Service Orchestrator — Implementation Summary</div>
+  <div class="date">Session date: 2026-05-20</div>
+</div>
+
+<div class="page">
+
+<h1>Implementation Summary</h1>
+<p>This document captures every change requested and applied during the development session for the <strong>Madadgar</strong> hackathon project — an AI-powered service marketplace for Pakistan. Changes span the React Native (Expo SDK 54) frontend and the Node.js/Express backend.</p>
+
+<h2 class="toc">Table of contents</h2>
+<ol class="toc">
+  <li>Madadgar logo (SVG)</li>
+  <li>Booking confirmation flow — customer details form</li>
+  <li>Home screen "See all" → dedicated listing screens</li>
+  <li>Services screen — filter chip sizing fix</li>
+  <li>AI chat — intent-aware service suggestions</li>
+  <li>Chat UX — keyboard handling + typewriter animation</li>
+  <li>Smalltalk handling + welcome card on greeting</li>
+  <li>Robust intent classification (prompt + keyword guardrail)</li>
+  <li>Backend LLM swap — Gemini → OpenRouter</li>
+  <li>Heuristic fallback for LLM outages (history-aware)</li>
+  <li>Push notifications + notifications inbox</li>
+  <li>Expo Go: silencing expo-notifications warnings</li>
+  <li>Booking slot validation — time/date pills in chat</li>
+  <li>30-day date picker, 10 AM–9 PM time slots, preserved halves</li>
+</ol>
+
+<hr/>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>1. Madadgar logo (SVG)</h2>
+
+<div class="request-label">Request</div>
+<blockquote>"i've a mobile app for AI service provider so i want logo for that … name Madadgar, tagline 'Find help. Book service. Relax.', tagline font Poppins."</blockquote>
+<p>After iteration, the user chose <strong>Monogram 'M' + spark</strong> in a <strong>deep green → emerald</strong> gradient squircle.</p>
+
+<div class="files-label">File created</div>
+<p class="files-list">frontend/assets/madadgar-logo.svg</p>
+
+<div class="change-label">Final SVG (excerpt)</div>
+<pre><code>&lt;svg viewBox="0 0 720 540"&gt;
+  &lt;defs&gt;
+    &lt;linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%"&gt;
+      &lt;stop offset="0%"   stop-color="#064E3B"/&gt;
+      &lt;stop offset="55%"  stop-color="#047857"/&gt;
+      &lt;stop offset="100%" stop-color="#10B981"/&gt;
+    &lt;/linearGradient&gt;
+  &lt;/defs&gt;
+
+  &lt;!-- Squircle app-icon container --&gt;
+  &lt;rect x="0" y="0" width="240" height="240" rx="62" fill="url(#brandGrad)"/&gt;
+
+  &lt;!-- 'M' monogram + 4-point AI sparkle --&gt;
+  &lt;path d="M -66 60 L -66 -54 L 0 14 L 66 -54 L 66 60"
+        fill="none" stroke="#FFFFFF" stroke-width="18"/&gt;
+  &lt;path d="M 78 -78 L 84 -64 L 98 -58 L 84 -52 L 78 -38 L 72 -52 L 58 -58 L 72 -64 Z"
+        fill="#FFFFFF"/&gt;
+
+  &lt;text x="360" y="400" font-family="Poppins" font-size="58" font-weight="700"&gt;Madadgar&lt;/text&gt;
+  &lt;text x="360" y="445" font-family="Poppins" font-size="15" font-weight="500"
+        letter-spacing="3.5" fill="#475569"&gt;FIND HELP  ·  BOOK SERVICE  ·  RELAX&lt;/text&gt;
+&lt;/svg&gt;
+</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>2. Booking confirmation flow — customer details form</h2>
+
+<div class="request-label">Request</div>
+<blockquote>"On service detail screen … the complete flow … should ask for customers location, preferred date and time, reason or short explanation of fixes and issues."</blockquote>
+
+<div class="files-label">Files modified</div>
+<p class="files-list">
+  frontend/src/components/BookingConfirmationFlow/BookingConfirmationFlow.jsx<br/>
+  frontend/src/components/BookingConfirmationFlow/BookingConfirmationFlow.styles.js<br/>
+  frontend/src/screens/ServiceDetails/ServiceDetails.jsx
+</p>
+
+<h4>What was added</h4>
+<ul>
+  <li>A new <code>form</code> phase as the entry state of the modal — runs before the existing <code>loading</code> spinner and <code>success</code> card.</li>
+  <li>Fields: <strong>Location</strong> (TextInput), <strong>Preferred date</strong> (chips), <strong>Preferred time</strong> (chips), <strong>What needs fixing?</strong> (multiline TextInput).</li>
+  <li>Submit button stays disabled until all fields are valid.</li>
+  <li>On submit, calls <code>onSubmit(formData)</code> exposed to <code>ServiceDetails</code>, which persists the booking through <code>saveBookingForUser</code>.</li>
+  <li>Success card now also shows the chosen date/time and a snippet of the reason.</li>
+</ul>
+
+<h4>ServiceDetails wiring (excerpt)</h4>
+<pre><code>const handleBookingSubmit = (formData) =&gt; {
+  if (!service || !provider || !user?.uid) return;
+  saveBookingForUser(user.uid, {
+    providerId: provider.id,
+    providerName: provider.fullName,
+    serviceId: service.id,
+    serviceTitle: service.title,
+    status: 'pending',
+    price: service.basePrice,
+    location: formData?.location || service.location,
+    scheduledFor: formData?.scheduledAt
+      ? formData.scheduledAt.toISOString()
+      : null,
+    preferredDate: formData?.dateLabel || null,
+    preferredTime: formData?.timeSlot || null,
+    reason: formData?.reason || null,
+  }).catch(() =&gt; {});
+};</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>3. Home screen "See all" → dedicated listing screens</h2>
+
+<div class="request-label">Request</div>
+<blockquote>"The home screen shows, popular providers with a see all, as well as popular services and see all, both see all are not working, make them work."</blockquote>
+
+<div class="files-label">Files created</div>
+<p class="files-list">
+  frontend/app/providers.jsx — all providers list with search<br/>
+  frontend/app/services.jsx — all services list with search + FilterSheet
+</p>
+
+<div class="files-label">File modified</div>
+<p class="files-list">frontend/src/screens/Home/TakerHomeScreen.jsx (wired onPress on both SubHeaderItems)</p>
+
+<h4>Before</h4>
+<pre><code>&lt;SubHeaderItem title="Featured Providers" navTitle="See all" /&gt;
+...
+&lt;SubHeaderItem
+  title={...}
+  navTitle={`${services.length} result${services.length === 1 ? '' : 's'}`}
+/&gt;</code></pre>
+
+<h4>After</h4>
+<pre><code>&lt;SubHeaderItem
+  title="Featured Providers"
+  navTitle="See all"
+  onPress={() =&gt; router.push('/providers')}
+/&gt;
+...
+&lt;SubHeaderItem
+  title={...}
+  navTitle="See all"
+  onPress={() =&gt; router.push('/services')}
+/&gt;</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>4. Services screen — active-filter chip sizing fix</h2>
+
+<div class="request-label">Request</div>
+<blockquote>"When on all services screen I select a category filter, but the category pill shown when filters applied are too big."</blockquote>
+
+<div class="files-label">File modified</div>
+<p class="files-list">frontend/app/services.jsx</p>
+
+<h4>Root cause</h4>
+<p>Active-filter chips were rendered with a horizontal <code>FlatList</code> which stretched rows to fill the list height. Switched to a horizontal <code>ScrollView</code> (matching home screen) and added <code>flexGrow: 0</code> + tightened padding.</p>
+
+<h4>Style change</h4>
+<pre><code>activeFiltersRow: {
+  flexGrow: 0,
+  marginBottom: 8,
+},
+activeFiltersContent: {
+  gap: 6,
+  alignItems: 'center',
+  paddingVertical: 2,
+},
+activeFilterChip: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 4,
+  paddingHorizontal: 10,
+  paddingVertical: 4,
+  borderRadius: 999,
+  backgroundColor: PALETTE.golden,
+},</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>5. AI chat — intent-aware service suggestions</h2>
+
+<div class="request-label">Request</div>
+<blockquote>"On chat screen, Madadgar assistant. The customer can write 'I want a booking in Karachi for replacing my AC' — AI will analyze and provide best fit for this service and provide option to book that service."</blockquote>
+
+<div class="files-label">Files modified</div>
+<p class="files-list">
+  Backend/workflows/orchestrator.js — stopped auto-booking, returns intent + message<br/>
+  Backend/agents/intentAgent.js — added 'suggestions' message type<br/>
+  frontend/src/hooks/useChat.js — searches Firestore catalog after intent<br/>
+  frontend/src/screens/Chat/ChatScreen.jsx — renders suggestion cards + intent chips<br/>
+  frontend/src/screens/Chat/ChatScreen.styles.js — card / chip / no-matches styles<br/>
+  frontend/src/screens/ServiceDetails/ServiceDetails.jsx — accepts prefillLocation / prefillTime / autoBook params<br/>
+  frontend/src/components/BookingConfirmationFlow/BookingConfirmationFlow.jsx — defaultLocation / defaultTimeText props
+</p>
+
+<h4>New flow</h4>
+<ol>
+  <li>User types free-text request.</li>
+  <li>Backend extracts <code>{ service, location, time }</code> via LLM and returns it (no more mock provider auto-booking).</li>
+  <li>Frontend maps the service text to a catalog category via a keyword map, queries Firestore, and re-ranks by location overlap.</li>
+  <li>Top 3 matches render as cards under the assistant bubble.</li>
+  <li>Tapping <strong>Book</strong> navigates to <code>/service/[id]</code> with <code>prefillLocation</code>, <code>prefillTime</code>, <code>autoBook=true</code> params.</li>
+  <li>ServiceDetails sees <code>autoBook</code> and opens the BookingConfirmationFlow automatically with date/time/location pre-selected.</li>
+</ol>
+
+<h4>Orchestrator core change</h4>
+<pre><code>// Before: always ran mock provider pipeline + auto-booked.
+// After: returns intent and lets frontend match against real catalog.
+if (missingFields.length === 0) {
+  const message = await IntentAgent.generateDynamicMessage('suggestions', userLang, {
+    service: intent.service,
+    location: intent.location,
+    time: intent.time,
+  });
+  return { success: true, intent, message, logs: logger.getLogs() };
+}</code></pre>
+
+<h4>useChat — service-keyword map (excerpt)</h4>
+<pre><code>const SERVICE_KEYWORD_MAP = [
+  { ids: ['ac-repair'], words: ['ac', 'air conditioner', 'cooling', 'aircon'] },
+  { ids: ['plumber'], words: ['plumb', 'tap', 'leak', 'pipe', 'drain'] },
+  { ids: ['electrician'], words: ['electric', 'wiring', 'wire', 'light', 'fan', 'switch'] },
+  { ids: ['cleaning'], words: ['clean', 'maid', 'cleaner', 'sweep', 'broom', 'dust', 'mop'] },
+  { ids: ['carpentry'], words: ['carpent', 'wood', 'furniture'] },
+  { ids: ['tutoring'], words: ['tutor', 'teacher', 'tuition'] },
+  { ids: ['beauty'], words: ['beauty', 'salon', 'makeup', 'hair', 'parlour'] },
+  { ids: ['catering'], words: ['cater', 'cook', 'chef', 'food'] },
+];</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>6. Chat UX — keyboard handling + typewriter animation</h2>
+
+<div class="request-label">Request</div>
+<blockquote>"When I click to type the keyboard shows up and covers the typing area, as well the response generated isn't good, it should be like AI style output, type character by character."</blockquote>
+
+<div class="files-label">Files modified</div>
+<p class="files-list">
+  frontend/src/screens/Chat/ChatScreen.jsx — TypewriterText component + KAV offset<br/>
+  frontend/src/screens/Chat/ChatScreen.styles.js — input bar bottom padding<br/>
+  frontend/app/(tabs)/_layout.jsx — tabBarHideOnKeyboard for chat tab
+</p>
+
+<h4>KeyboardAvoidingView</h4>
+<pre><code>// Before
+&lt;KeyboardAvoidingView
+  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+  keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+&gt;
+
+// After
+const tabBarHeight = useBottomTabBarHeight();
+&lt;KeyboardAvoidingView
+  behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+  keyboardVerticalOffset={Platform.OS === 'ios' ? tabBarHeight : 0}
+&gt;</code></pre>
+
+<h4>TypewriterText component (key parts)</h4>
+<pre><code>const TYPING_SPEED_MS = 16;
+
+function TypewriterText({ text, style, animate, onTick, onComplete }) {
+  const [shown, setShown] = useState(animate ? '' : text);
+  const lastAnimatedRef = useRef(animate ? '' : text);
+  const [cursorOn, setCursorOn] = useState(true);
+  const [typing, setTyping] = useState(false);
+
+  useEffect(() =&gt; {
+    if (!animate) { setShown(text); onComplete?.(); return; }
+    if (lastAnimatedRef.current === text) return;
+    lastAnimatedRef.current = text;
+    setShown(''); setTyping(true);
+    let i = 0; let timer;
+    const step = () =&gt; {
+      i += 1;
+      setShown(text.slice(0, i));
+      onTick?.();
+      if (i &lt; text.length) timer = setTimeout(step, TYPING_SPEED_MS);
+      else { setTyping(false); onComplete?.(); }
+    };
+    timer = setTimeout(step, TYPING_SPEED_MS);
+    return () =&gt; clearTimeout(timer);
+  }, [text, animate]);
+
+  return &lt;Text style={style}&gt;{shown}{typing && '▌'}&lt;/Text&gt;;
+}</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>7. Smalltalk handling + welcome card on greeting</h2>
+
+<div class="request-label">Requests</div>
+<blockquote>"If I'll say hello will it work?" → "Sure, wire it in."</blockquote>
+<blockquote>"There should be a welcome message like hi I'm Madadgar AI assistant … if user starts with hello, hi, hola, salam, that message should appear at first."</blockquote>
+
+<div class="files-label">Files modified</div>
+<p class="files-list">
+  Backend/agents/intentAgent.js — added intentType classification (service_request | smalltalk | unclear) + smalltalk message type<br/>
+  Backend/workflows/orchestrator.js — short-circuits to smalltalk reply when intentType ≠ service_request<br/>
+  frontend/src/hooks/useChat.js — isGreeting() regex; flags showServiceCategories<br/>
+  frontend/src/screens/Chat/ChatScreen.jsx — renders 8 category chips when showServiceCategories=true
+</p>
+
+<h4>Greeting detection</h4>
+<pre><code>const GREETING_RE = /^\s*(hi+|hey+|hello+|hola+|yo+|sup+|salam+a*t*|as[- ]?salam[ou]?[- ]?alaikum|assalam(u)?[- ]?o?[- ]?alaikum|aoa|namaste|namaskar|good\s+(morning|afternoon|evening|day)|gm|ge|ga)[\s!.,?]*$/i;
+function isGreeting(text = '') { return GREETING_RE.test(text.trim()); }</code></pre>
+
+<h4>Curated welcome text</h4>
+<pre><code>} else if (greeted) {
+  finalText = `Hi! I'm Madadgar — your AI service assistant. Tell me what you need and I'll find and book a trusted provider for you. We provide:`;
+}</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>8. Robust intent classification</h2>
+
+<div class="request-label">Requests</div>
+<blockquote>"I wrote 'Electrician' and it's still responding the default welcome message."</blockquote>
+<blockquote>"Single-word service mentions … should be detected."</blockquote>
+
+<div class="files-label">File modified</div>
+<p class="files-list">Backend/agents/intentAgent.js</p>
+
+<h4>Prompt — expanded with positive examples</h4>
+<pre><code>* "service_request" — ANY mention of a home service, trade, task, or problem...
+    - Bare service nouns or category names: "Plumber", "Electrician", "AC Repair", "Carpenter", "Cleaning", "Sweeping", "Tutor", "Beautician", "Caterer".
+    - Booking phrases: "I need an AC technician", "Book a plumber", "Mujhe electrician chahiye".
+    - Problem descriptions: "My tap is leaking", "AC not cooling", "house needs cleaning".
+    EVEN IF the message is a single word with no verb (e.g. just "Plumber"), classify it as service_request.
+
+Examples:
+  User: "Hi" → "smalltalk"
+  User: "Electrician" → "service_request"
+  User: "Sweeping" → "service_request"
+  User: "I need a plumber tomorrow in DHA Karachi" → "service_request"
+  User: "What can you do?" → "smalltalk"
+  User: "Tell me a joke" → "unclear"</code></pre>
+
+<h4>Deterministic keyword guardrail</h4>
+<pre><code>const SERVICE_KEYWORDS = [
+  { label: 'Electrician', words: ['electrician', 'electric', 'wiring', 'switchboard', 'fan repair', 'light repair'] },
+  { label: 'Plumber', words: ['plumber', 'plumbing', 'tap', 'leak', 'pipe', 'drain', 'toilet', 'faucet'] },
+  { label: 'AC Repair', words: ['ac repair', 'ac technician', 'ac tech', 'air conditioner', 'aircon', 'ac '] },
+  { label: 'Cleaning', words: ['cleaning', 'cleaner', 'sweeping', 'sweep', 'broom', 'dust', 'mop', 'maid'] },
+  { label: 'Carpenter', words: ['carpenter', 'carpentry', 'wood work', 'furniture repair'] },
+  { label: 'Tutor', words: ['tutor', 'tuition', 'teacher', 'home tuition'] },
+  { label: 'Beautician', words: ['beautician', 'salon', 'makeup', 'hair', 'parlour', 'parlor'] },
+  { label: 'Caterer', words: ['caterer', 'catering', 'chef', 'cook for', 'food service'] },
+];
+
+// Post-LLM rescue: if user clearly mentioned a known service keyword, force
+// service_request and backfill `service` regardless of model classification.
+const keywordHit = detectServiceKeyword(userInput);
+if (keywordHit) {
+  if (extractedData.intentType !== 'service_request') {
+    extractedData.intentType = 'service_request';
+  }
+  if (!extractedData.service) extractedData.service = keywordHit;
+}</code></pre>
+
+<h4>Word-boundary regex (delimiter-safe)</h4>
+<pre><code>function detectServiceKeyword(text = '') {
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  for (const entry of SERVICE_KEYWORDS) {
+    for (const w of entry.words) {
+      const re = new RegExp(`(^|\\W)${escapeForRegex(w.trim())}(\\W|$)`);
+      if (re.test(lower)) return entry.label;
+    }
+  }
+  return null;
+}</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>9. Backend LLM swap — Gemini → OpenRouter</h2>
+
+<div class="request-label">Trigger</div>
+<blockquote>Free-tier Gemini quota was exhausted (20 requests/day on gemini-2.5-flash). User replaced GEMINI_API_KEY with an OpenRouter key.</blockquote>
+
+<div class="files-label">File modified</div>
+<p class="files-list">Backend/agents/intentAgent.js</p>
+
+<h4>Before — Google GenAI SDK</h4>
+<pre><code>import { GoogleGenAI } from '@google/genai';
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+...
+const response = await ai.models.generateContent({
+  model: 'gemini-2.5-flash',
+  contents: prompt,
+  config: { responseMimeType: 'application/json' },
+});</code></pre>
+
+<h4>After — OpenAI-compatible fetch against OpenRouter</h4>
+<pre><code>const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-5.3-chat';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+async function callOpenRouter(prompt, { json = false } = {}) {
+  if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not set.');
+  const body = {
+    model: OPENROUTER_MODEL,
+    messages: [{ role: 'user', content: prompt }],
+  };
+  if (json) body.response_format = { type: 'json_object' };
+  const res = await fetch(OPENROUTER_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://madadgar.local',
+      'X-Title': 'Madadgar',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content || '';
+}</code></pre>
+
+<h4>Language-first prompt restructure</h4>
+<p>Smalltalk replies were drifting into Roman Urdu even for English input. The fix put the language rule at the <em>top</em> of every prompt with positive/negative examples:</p>
+<pre><code>if (language === 'english') {
+  languageRule = `LANGUAGE RULE (NON-NEGOTIABLE):
+Reply ONLY in plain English. Do NOT use Urdu, Roman Urdu, Hindi, or any other language.
+Examples of CORRECT replies: "Sure, what service do you need?", "Hi! How can I help?".
+Examples of INCORRECT replies: "Aap ko kya chahiye?", "Mujhe batayein…".`;
+}</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>10. Heuristic fallback when the LLM fails</h2>
+
+<div class="request-label">Trigger</div>
+<blockquote>Gemini quota errors caused conversation dead-ends. Without an LLM, the chat needed to keep functioning.</blockquote>
+
+<div class="files-label">File modified</div>
+<p class="files-list">Backend/agents/intentAgent.js</p>
+
+<h4>What was added</h4>
+<ul>
+  <li><strong>Service keyword detection</strong> — same regex map used as a guardrail above.</li>
+  <li><strong>Location detection</strong> — list of Pakistani cities (Karachi, Lahore, Islamabad, …) and area hints (DHA, Clifton, G-13, …).</li>
+  <li><strong>Time detection</strong> — regex patterns for today / tomorrow / weekdays / clock / morning / afternoon / evening / now / asap.</li>
+  <li><strong>History-aware</strong> — only scans <em>User:</em> lines from the formatted history (assistant fallbacks contain "plumber" / "today" and were polluting matches).</li>
+  <li><strong>Robust JSON parsing</strong> — regex-extracts the first <code>{…}</code> from any model output as a backstop.</li>
+</ul>
+
+<h4>Heuristic intent builder</h4>
+<pre><code>function heuristicIntent(userInput = '', history = '') {
+  const userHistory = history
+    .split('\n')
+    .filter((line) =&gt; /^\s*User:/i.test(line))
+    .map((line) =&gt; line.replace(/^\s*User:\s*/i, ''))
+    .join('\n');
+
+  const combined = `${userHistory}\n${userInput}`;
+  const service = detectServiceKeyword(userInput) || detectServiceKeyword(userHistory);
+  const location =
+    detectLocationKeyword(userInput) ||
+    detectLocationKeyword(userHistory) ||
+    detectLocationKeyword(combined);
+  const time = detectTimeKeyword(userInput) || detectTimeKeyword(userHistory);
+
+  return {
+    intentType: service ? 'service_request' : 'unclear',
+    service: service || null,
+    location: location || null,
+    time: time || null,
+    language: 'english',
+  };
+}</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>11. Push notifications + inbox</h2>
+
+<div class="request-label">Request</div>
+<blockquote>"Add push notifications for service provider that service is requested and then if accepted the user gets push notification … I have a notifications icon in topbar on home screen, you should add to it."</blockquote>
+
+<div class="files-label">Files created / modified</div>
+<p class="files-list">
+  frontend/src/services/pushService.js (new) — register, save token, send via Expo Push API<br/>
+  frontend/src/hooks/usePushRegistration.js (new) — mounted at root, registers per logged-in user<br/>
+  frontend/src/context/NotificationsContext.jsx (new) — in-memory + AsyncStorage inbox<br/>
+  frontend/app/notifications.jsx (new) — list screen<br/>
+  frontend/src/services/bookingService.js — fires push on saveBookingForUser + acceptBooking<br/>
+  frontend/app/_layout.jsx — wraps app with NotificationsProvider + mounts PushRegistrar<br/>
+  frontend/src/screens/Home/TakerHomeScreen.jsx / ProviderHomeScreen.jsx — bell badge + onPress<br/>
+  frontend/package.json — added expo-notifications + expo-dev-client<br/>
+  frontend/app.json — added expo-notifications plugin block + EAS projectId
+</p>
+
+<h4>Trigger 1: customer books → provider gets push</h4>
+<pre><code>export const saveBookingForUser = async (uid, booking) =&gt; {
+  if (!uid || !booking) return null;
+  const ref = await addDoc(collection(db, 'bookings'), { ... });
+
+  if (booking.providerId) {
+    sendPushToUser(booking.providerId, {
+      title: 'New booking request',
+      body: `${booking.serviceTitle || 'A new service'} request in ${booking.location}.`,
+      data: { type: 'booking_requested', bookingId: ref.id },
+    }).catch(() =&gt; {});
+  }
+  return ref.id;
+};</code></pre>
+
+<h4>Trigger 2: provider accepts → customer gets push</h4>
+<pre><code>export const acceptBooking = async (bookingId) =&gt; {
+  const ref = doc(db, 'bookings', bookingId);
+  await updateDoc(ref, { status: 'accepted', updatedAt: serverTimestamp() });
+
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const data = snap.data();
+    if (data.takerId) {
+      sendPushToUser(data.takerId, {
+        title: 'Booking accepted',
+        body: `${data.providerName} accepted your ${data.serviceTitle} booking.`,
+        data: { type: 'booking_accepted', bookingId },
+      }).catch(() =&gt; {});
+    }
+  }
+};</code></pre>
+
+<h4>NotificationsContext — receive + persist</h4>
+<pre><code>const sub = Notifications.addNotificationReceivedListener(ingest);
+const respSub = Notifications.addNotificationResponseReceivedListener(
+  (response) =&gt; ingest(response?.notification)
+);
+// ingest() pushes the notification into state and AsyncStorage under
+// `notifications:${uid}` so it survives app restarts.</code></pre>
+
+<h4>Bell wiring on home screens</h4>
+<pre><code>profileHeaderProps={{
+  ...
+  unreadNotificationCount: unreadCount,
+  onBellPress: () =&gt; router.push('/notifications'),
+}}</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>12. Expo Go — silencing expo-notifications warnings</h2>
+
+<div class="request-label">Trigger</div>
+<blockquote>"expo-notifications: Android Push notifications functionality was removed from Expo Go with the release of SDK 53. This is showing in expo go app, disable it."</blockquote>
+
+<div class="files-label">Files modified</div>
+<p class="files-list">
+  frontend/src/services/pushService.js — module-level guard + early return<br/>
+  frontend/src/hooks/usePushRegistration.js — skip all calls in Expo Go<br/>
+  frontend/src/context/NotificationsContext.jsx — skip listeners in Expo Go
+</p>
+
+<h4>Detection</h4>
+<pre><code>export const IS_EXPO_GO = Constants?.executionEnvironment === 'storeClient';
+
+if (!IS_EXPO_GO) {
+  Notifications.setNotificationHandler({ ... });
+}
+
+export async function registerForPushNotificationsAsync() {
+  if (IS_EXPO_GO) return null;
+  ...
+}</code></pre>
+<p>When the user moves to a development / production build, <code>IS_EXPO_GO</code> flips to <code>false</code> and the entire push pipeline auto-enables with no code change.</p>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>13. Booking slot validation — time/date pills in chat</h2>
+
+<div class="request-label">Requests</div>
+<blockquote>"If user provides 11 PM which is not an available slot, user should get response that bookings are not available this time, then pills should show available time slots."</blockquote>
+<blockquote>"In this I didn't tell time and it didn't ask and shows booking options, and the prefilled 11 AM gets selected by default."</blockquote>
+
+<div class="files-label">Files created / modified</div>
+<p class="files-list">
+  frontend/src/constants/booking.js (new) — shared TIME_SLOTS, buildDateOptions, validators<br/>
+  frontend/src/hooks/useChat.js — validates intent, attaches pill data<br/>
+  frontend/src/screens/Chat/ChatScreen.jsx — renders time / date pills with onPress send<br/>
+  frontend/src/screens/Chat/ChatScreen.styles.js — slot chip styles<br/>
+  frontend/src/components/BookingConfirmationFlow/BookingConfirmationFlow.jsx — switched to shared constants
+</p>
+
+<h4>Validators</h4>
+<pre><code>// Returns 'ok' | 'out_of_range' | 'no_clock'
+export const validateIntentClock = (text = '') =&gt; {
+  const hh = extractClockHour(text);
+  if (hh !== null) {
+    if (hh &lt; 10 || hh &gt; 21) return 'out_of_range';
+    return 'ok';
+  }
+  if (/\b(morning|afternoon|evening|night|noon|asap|now)\b/.test(text.toLowerCase())) {
+    return 'ok';
+  }
+  return 'no_clock';
+};
+
+// Returns 'ok' | 'out_of_range' | 'no_date'
+export const validateIntentDate = (text = '') =&gt; {
+  const key = extractIntentDateKey(text);
+  if (!key) return 'no_date';
+  return buildDateOptions().some((d) =&gt; d.key === key) ? 'ok' : 'out_of_range';
+};</code></pre>
+
+<h4>useChat — slot-aware reply selection</h4>
+<pre><code>const needsTimePick = clockState !== 'ok';
+const needsDatePick = dateState !== 'ok';
+
+if (needsTimePick && needsDatePick) {
+  finalText = timeMissing && dateMissing
+    ? `When would you like the service? Pick a date and a time below:`
+    : `That time and date aren't bookable. Pick one of the slots below.`;
+} else if (needsTimePick) {
+  finalText = timeMissing
+    ? `What time works best? Pick a slot below:`
+    : `Sorry, bookings are only available between 10:00 AM and 9:00 PM. Pick a time below:`;
+} else if (needsDatePick) { ... }</code></pre>
+
+<h4>Preserved half across pill picks</h4>
+<p>If user said "Liaquatabad, 30 dec, 12 pm" — date is out of range but the 12 PM clock is valid. We compute <code>preservedTimeText = "12:00 PM"</code> and attach it to the assistant message. When the user taps a date pill, the chat sends <code>"Tue, 2 Jun at 12:00 PM"</code> so the LLM keeps the surviving clock. Reverse case (time bad, date good) preserves the date label.</p>
+
+<pre><code>// In useChat
+if (clockState === 'ok' && needsDatePick) {
+  const hh = extractClockHour(intent.time);
+  if (hh !== null) {
+    const meridian = hh &gt;= 12 ? 'PM' : 'AM';
+    const h12 = hh % 12 || 12;
+    preservedTimeText = `${h12}:00 ${meridian}`;
+  }
+}
+
+// In ChatScreen — date pill onPress
+onPress={() =&gt;
+  send(
+    item.preservedTimeText
+      ? `${opt.label} at ${item.preservedTimeText}`
+      : opt.label,
+  )
+}</code></pre>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────────────── -->
+<section>
+<h2>14. 30-day picker, 10 AM–9 PM time slots, fade-in extras</h2>
+
+<div class="request-label">Requests</div>
+<blockquote>"Date shows first 3-4 days, the user can book it within one month from today and time slots can be 10 am to 9 pm, also date and time doesn't get selected with prefilled values."</blockquote>
+<blockquote>"The result type gets late but pills shows first, it should be like when typing ends the pills should show with fade in."</blockquote>
+
+<div class="files-label">Files modified</div>
+<p class="files-list">
+  frontend/src/constants/booking.js — DATE_DAYS=30, 12 time slots<br/>
+  frontend/src/components/BookingConfirmationFlow/BookingConfirmationFlow.jsx — parsePrefilledTime() maps free-text to dateKey + timeSlot<br/>
+  frontend/src/screens/Chat/ChatScreen.jsx — FadeIn wrapper, completedIds tracking
+</p>
+
+<h4>parsePrefilledTime</h4>
+<pre><code>const parsePrefilledTime = (text, dateOptions) =&gt; {
+  const result = { dateKey: null, timeSlot: null };
+  if (!text) return result;
+  const lower = text.toLowerCase();
+
+  if (/\btoday\b|\bnow\b|\basap\b|\bavailable\b/.test(lower)) {
+    result.dateKey = dateOptions[0]?.key;
+  } else if (/\btomorrow\b/.test(lower)) {
+    result.dateKey = dateOptions[1]?.key;
+  } else {
+    // weekday match — next occurrence
+    ...
+  }
+
+  const clock = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+  if (clock) {
+    const hh = parseInt(clock[1], 10);
+    const wanted = `${hh}:00 ${clock[3].toUpperCase()}`;
+    if (TIME_SLOTS.includes(wanted)) result.timeSlot = wanted;
+  } else if (/\bmorning\b/.test(lower)) result.timeSlot = '10:00 AM';
+  else if (/\bnoon\b/.test(lower)) result.timeSlot = '12:00 PM';
+  else if (/\bafternoon\b/.test(lower)) result.timeSlot = '2:00 PM';
+  else if (/\bevening\b/.test(lower)) result.timeSlot = '6:00 PM';
+  else if (/\bnight\b/.test(lower)) result.timeSlot = '8:00 PM';
+
+  return result;
+};</code></pre>
+
+<h4>FadeIn wrapper + completedIds gating</h4>
+<pre><code>function FadeIn({ children, duration = 260, style }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  useEffect(() =&gt; {
+    Animated.timing(opacity, {
+      toValue: 1, duration, useNativeDriver: true,
+    }).start();
+  }, []);
+  return &lt;Animated.View style={[{ opacity }, style]}&gt;{children}&lt;/Animated.View&gt;;
+}
+
+// In renderItem:
+const extrasReady = !shouldAnimate || completedIds.has(item.id);
+
+{extrasReady && hasSuggestions && (
+  &lt;FadeIn style={styles.suggestionsWrap}&gt;
+    {item.suggestions.map((svc) =&gt; renderSuggestionCard(svc, item))}
+  &lt;/FadeIn&gt;
+)}</code></pre>
+<p>Every post-bubble block (intent chips, suggestion cards, slot pills, category pivots) is gated on <code>extrasReady</code>. TypewriterText fires <code>onComplete</code> → adds id to <code>completedIds</code> → the gate flips → blocks mount inside FadeIn and animate opacity 0→1 over 260 ms.</p>
+</section>
+
+<hr/>
+
+<h2>Appendix — File map</h2>
+
+<table>
+  <thead>
+    <tr><th>Path</th><th>Created / Modified</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>frontend/assets/madadgar-logo.svg</td><td>Created</td><td>Brand mark</td></tr>
+    <tr><td>frontend/src/components/BookingConfirmationFlow/BookingConfirmationFlow.jsx</td><td>Modified</td><td>Form phase + date/time parsing + 30 day picker</td></tr>
+    <tr><td>frontend/src/components/BookingConfirmationFlow/BookingConfirmationFlow.styles.js</td><td>Modified</td><td>Form, chip, helper text styles</td></tr>
+    <tr><td>frontend/src/screens/ServiceDetails/ServiceDetails.jsx</td><td>Modified</td><td>autoBook + prefillLocation / prefillTime params</td></tr>
+    <tr><td>frontend/app/providers.jsx</td><td>Created</td><td>All providers list</td></tr>
+    <tr><td>frontend/app/services.jsx</td><td>Created</td><td>All services list with FilterSheet</td></tr>
+    <tr><td>frontend/app/notifications.jsx</td><td>Created</td><td>Inbox screen</td></tr>
+    <tr><td>frontend/src/screens/Home/TakerHomeScreen.jsx</td><td>Modified</td><td>See all wiring + bell badge</td></tr>
+    <tr><td>frontend/src/screens/Home/ProviderHomeScreen.jsx</td><td>Modified</td><td>Bell badge + onBellPress</td></tr>
+    <tr><td>frontend/src/screens/Chat/ChatScreen.jsx</td><td>Modified</td><td>TypewriterText, FadeIn, slot pills, suggestion cards</td></tr>
+    <tr><td>frontend/src/screens/Chat/ChatScreen.styles.js</td><td>Modified</td><td>Suggestion / chip / pill styles</td></tr>
+    <tr><td>frontend/src/hooks/useChat.js</td><td>Modified</td><td>Intent validation, slot pills, preserved halves, greeting flag, suggestion fetch</td></tr>
+    <tr><td>frontend/src/hooks/usePushRegistration.js</td><td>Created</td><td>Per-user push token registration</td></tr>
+    <tr><td>frontend/src/context/NotificationsContext.jsx</td><td>Created</td><td>Inbox state + AsyncStorage</td></tr>
+    <tr><td>frontend/src/services/pushService.js</td><td>Created</td><td>Permission, token, send via Expo Push API</td></tr>
+    <tr><td>frontend/src/services/bookingService.js</td><td>Modified</td><td>Fires push on book + accept</td></tr>
+    <tr><td>frontend/src/constants/booking.js</td><td>Created</td><td>Shared time slots, date options, validators</td></tr>
+    <tr><td>frontend/app/_layout.jsx</td><td>Modified</td><td>NotificationsProvider + PushRegistrar</td></tr>
+    <tr><td>frontend/app/(tabs)/_layout.jsx</td><td>Modified</td><td>tabBarHideOnKeyboard on chat</td></tr>
+    <tr><td>frontend/app.json</td><td>Modified</td><td>expo-notifications plugin + EAS projectId</td></tr>
+    <tr><td>frontend/package.json</td><td>Modified</td><td>+expo-notifications, +expo-dev-client</td></tr>
+    <tr><td>Backend/agents/intentAgent.js</td><td>Modified</td><td>Smalltalk + suggestions + OpenRouter + heuristic fallback + keyword guardrail</td></tr>
+    <tr><td>Backend/workflows/orchestrator.js</td><td>Modified</td><td>No mock auto-booking; returns intent + smalltalk branch</td></tr>
+  </tbody>
+</table>
+
+<h2>How to convert this file to PDF</h2>
+<ol>
+  <li>Open <code>CHANGES_SUMMARY.html</code> in Chrome, Edge, or Firefox.</li>
+  <li>Press <strong>Ctrl + P</strong> (Cmd + P on Mac).</li>
+  <li>Set "Destination" / "Printer" to <strong>Save as PDF</strong>.</li>
+  <li>Keep margins set to "Default" and turn off headers/footers for the cleanest output.</li>
+  <li>Click <strong>Save</strong>.</li>
+</ol>
+
+</div>
+</body>
+</html>
