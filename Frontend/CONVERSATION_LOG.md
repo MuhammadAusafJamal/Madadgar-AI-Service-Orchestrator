@@ -2,6 +2,10 @@
 
 A running record of debugging/feature work done with Claude Code. Newest session at the top.
 
+> **Reference note:** This log is the project's reference for all work done so
+> far. When the user says "do this" or refers back to earlier work, take
+> reference from the relevant entry below.
+
 ---
 
 ## Session — 2026-05-20
@@ -337,3 +341,25 @@ used). Restart the backend.
 **Result:** Challenge 2 System Requirement #7 → ✅ Done — **System Requirements
 now 7/7; all functional requirements complete.** `CHALLENGE_2_ANALYSIS.md`
 updated (overall ~85% → ~90%). Remaining: README + demo video (non-code).
+
+### 12. README + demo video (Challenge 2 deliverables)
+
+**Context:** The last two deliverables. The user recorded the demo video; the
+root `README.md` was still empty ("# HackathonProject").
+
+**Done:**
+- Wrote the root `README.md` — project overview, architecture diagram,
+  the 8-agent pipeline table, tech stack & APIs, how Google Antigravity is used,
+  project structure, backend/frontend setup + `.env` reference, and
+  assumptions/limitations. (Has a placeholder for the demo video link.)
+- `CHALLENGE_2_ANALYSIS.md` — marked Deliverable #2 (Demo Video) and #4 (README)
+  ✅; deliverables now 4/4; overall ~90% → ~95%.
+
+**Files changed:** `README.md` (root), `CHALLENGE_2_ANALYSIS.md`.
+
+**Action needed:** paste the demo video link into `README.md` (the
+"Demo video" placeholder), and review the "How Google Antigravity is used"
+section so it matches exactly how the team used Antigravity.
+
+**Status:** All Challenge 2 requirements (6/6 + 7/7) and all 4 deliverables are
+complete.

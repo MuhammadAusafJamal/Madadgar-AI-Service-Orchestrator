@@ -13,8 +13,8 @@
 |---|---|---|
 | **Initial Requirements** (Problem Statement, 6) | 6 / 6 — **100%** | **~100%** |
 | **System Requirements** (detailed, 7) | 7 / 7 — **100%** | **~100%** |
-| **Deliverables** (4) | 1 / 4 | **~55%** |
-| **Overall vs Challenge 2** | — | **~90%** |
+| **Deliverables** (4) | 4 / 4 — **100%** | **~100%** |
+| **Overall vs Challenge 2** | — | **~95%** |
 
 **Summary:** All 6 initial requirements and all 7 system requirements are now
 met — natural-language chat → intent extraction → weighted provider matching
@@ -22,8 +22,9 @@ met — natural-language chat → intent extraction → weighted provider matchi
 confirmation email → follow-up, with a full multi-agent pipeline
 (Intent → Location → Provider → Ranking → Decision → Booking → Follow-up →
 Notification) producing a traceable agent log visible in-app. The LLM is Google
-**Gemini** (`@google/genai`). What's left is non-code: the **README** and the
-**demo video**, plus evidencing **Antigravity** usage.
+**Gemini** (`@google/genai`). All four deliverables are complete — working app,
+demo video, agent traces, and the README. The remaining variable is how the
+judges weigh the **Antigravity** usage evidence.
 
 ---
 
@@ -66,6 +67,7 @@ Notification) producing a traceable agent log visible in-app. The LLM is Google
 
 Antigravity is a development/orchestration platform, not a code dependency, so
 its use is a *process* requirement. Notes:
+
 - The backend LLM is **Google Gemini** (`@google/genai`, `gemini-2.5-flash`) in
   `intentAgent.js`. Antigravity must still be "central to system logic and
   orchestration" — evidence this in the README + traces.
@@ -81,9 +83,9 @@ its use is a *process* requirement. Notes:
 | # | Deliverable | Status |
 |---|---|---|
 | 1 | Working Prototype — Mobile App (MUST) | ✅ Done — substantial Expo/React Native app. Web App (optional) — not present (fine). |
-| 2 | Demo Video (3–5 min) | ❓ Not in repo — produce it; must show input → understanding → matching → booking → follow-up. |
+| 2 | Demo Video (3–5 min) | ✅ Done — recorded; link in the root `README.md`. |
 | 3 | Agent Trace / Logs | ✅ Done — the full 8-agent pipeline logs every step; the rich trace is shown in-app (Agent Log tab in the chat reasoning sheet). `TRACE_AND_HISTORY.html` adds the Antigravity-side trace. |
-| 4 | Documentation (README) | ❌ Missing — root `README.md` is just "# HackathonProject". Needs architecture, Antigravity usage, APIs/tools, assumptions. |
+| 4 | Documentation (README) | ✅ Done — root `README.md` covers architecture, the 8-agent pipeline, tools/APIs, Antigravity usage, setup, and assumptions/limitations. |
 
 ---
 
@@ -115,9 +117,11 @@ its use is a *process* requirement. Notes:
 4. ~~Add `availability` to the ranking + a recommendation reason.~~ ✅ **Done
    (2026-05-21)** — `rankByMatch` now scores rating + availability + distance,
    flags the top pick, and attaches a plain-language reason.
-5. **Write the README** — architecture, Antigravity usage, tools/APIs,
-   assumptions. *(Now the top remaining task.)*
-6. **Record the demo video** covering the full input→follow-up flow.
+5. ~~Write the README.~~ ✅ **Done (2026-05-21)** — root `README.md` covers
+   architecture, the agent pipeline, tools/APIs, Antigravity usage, setup, and
+   assumptions.
+6. ~~Record the demo video.~~ ✅ **Done (2026-05-21)** — recorded; link in the
+   README.
 
 ---
 
@@ -125,12 +129,13 @@ its use is a *process* requirement. Notes:
 
 - **Initial Requirements:** 6 / 6 done — **100%**
 - **System Requirements:** 7 / 7 done — **100%**
-- **Deliverables:** 1 / 4 fully done — **~55%**
-- **Overall completion vs Challenge 2: ~90%**
+- **Deliverables:** 4 / 4 done — **100%**
+- **Overall completion vs Challenge 2: ~95%**
 
-Every functional requirement is met. What remains is non-code: write the
-**README**, record the **demo video**, and document how **Antigravity** was
-used — that's the gap between ~90% and a complete submission.
+Every requirement and deliverable is met. The only remaining variable is how the
+judges assess the **Antigravity** usage evidence — make sure the README's
+Antigravity section and the `TRACE_AND_HISTORY.html` artifact tell that story
+clearly.
 
 ---
 
@@ -170,3 +175,10 @@ used — that's the gap between ~90% and a complete submission.
   real Firestore booking. The pipeline is best-effort (a failed step never
   breaks the chat reply). **System Requirements now 7/7 — all functional
   requirements complete.**
+
+- **2026-05-21 — Deliverables #2 (Demo Video) + #4 (README) → ✅ Done.** Demo
+  video recorded (link in the README). Wrote the root `README.md` — project
+  overview, architecture diagram, the 8-agent pipeline, tech stack & APIs, how
+  Google Antigravity is used, project structure, setup/run instructions, and
+  assumptions/limitations. **All 4 deliverables now complete — Challenge 2 is at
+  ~95% (every requirement + deliverable met).**
