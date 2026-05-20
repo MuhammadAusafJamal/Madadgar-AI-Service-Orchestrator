@@ -18,6 +18,15 @@ export const TIME_SLOTS = [
 
 export const DATE_DAYS = 30;
 
+// Format a Date as a LOCAL-time YYYY-MM-DD key. We deliberately avoid
+// toISOString(), which converts to UTC and shifts the calendar day backwards
+// for any timezone ahead of UTC (e.g. Pakistan, UTC+5) — that off-by-one was
+// the source of bookings landing on the wrong day.
+const isoKey = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+
 export const buildDateOptions = () => {
   const today = new Date();
   const opts = [];
@@ -34,22 +43,33 @@ export const buildDateOptions = () => {
         month: 'short',
       });
     }
-    opts.push({ key: d.toISOString().slice(0, 10), label });
+    opts.push({ key: isoKey(d), label });
   }
   return opts;
 };
 
-// Return the 24-hour hour value from a phrase like "11 PM" or "9:30 am".
-// Returns null when no clock pattern is found.
+// Return the 24-hour hour value from a phrase like "11 PM", "9:30 am" or a
+// 24-hour clock like "15:00". Returns null when no clock pattern is found.
 export const extractClockHour = (text = '') => {
   if (typeof text !== 'string') return null;
-  const m = text.toLowerCase().match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
-  if (!m) return null;
-  let hh = parseInt(m[1], 10);
-  const meridian = m[3].toUpperCase();
-  if (meridian === 'PM' && hh !== 12) hh += 12;
-  if (meridian === 'AM' && hh === 12) hh = 0;
-  return hh;
+  const lower = text.toLowerCase();
+  // 12-hour clock with an explicit meridian, e.g. "11 PM", "9:30 am".
+  const ampm = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+  if (ampm) {
+    let hh = parseInt(ampm[1], 10);
+    const meridian = ampm[3].toUpperCase();
+    if (meridian === 'PM' && hh !== 12) hh += 12;
+    if (meridian === 'AM' && hh === 12) hh = 0;
+    return hh;
+  }
+  // 24-hour clock, e.g. "15:00", "09:30". A colon is required so we never
+  // misread a bare day-of-month ("May 22") as a time.
+  const h24 = lower.match(/\b(\d{1,2}):(\d{2})\b/);
+  if (h24) {
+    const hh = parseInt(h24[1], 10);
+    if (hh >= 0 && hh <= 23) return hh;
+  }
+  return null;
 };
 
 // Validate the intent's time string against the bookable slot window.
@@ -80,8 +100,6 @@ export const validateIntentClock = (text = '') => {
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 
-const isoKey = (d) => d.toISOString().slice(0, 10);
-
 export const extractIntentDateKey = (text = '') => {
   if (typeof text !== 'string') return null;
   const lower = text.toLowerCase();
@@ -96,18 +114,9 @@ export const extractIntentDateKey = (text = '') => {
     d.setDate(today.getDate() + 1);
     return isoKey(d);
   }
-  // Weekday → next occurrence
-  for (let i = 0; i < WEEKDAYS.length; i += 1) {
-    const day = WEEKDAYS[i];
-    const re = new RegExp(`\\b${day.slice(0, 3)}\\w*\\b`);
-    if (re.test(lower)) {
-      const diff = (i - today.getDay() + 7) % 7 || 7;
-      const d = new Date(today);
-      d.setDate(today.getDate() + diff);
-      return isoKey(d);
-    }
-  }
-  // "31st may" / "may 31" / "31 may"
+  // Explicit calendar date — "31st may" / "may 31" / "31 may". Checked BEFORE
+  // weekday names: a phrase like "30 May Sat" states an exact day, so a bare
+  // "Sat" must not win and snap the booking to the nearest Saturday instead.
   const dm = lower.match(/(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*/);
   const md = lower.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s+(\d{1,2})/);
   let day = null;
@@ -127,6 +136,17 @@ export const extractIntentDateKey = (text = '') => {
       candidate = new Date(year, monthIdx, day);
     }
     return isoKey(candidate);
+  }
+  // Weekday → next occurrence (loosest match, so checked last)
+  for (let i = 0; i < WEEKDAYS.length; i += 1) {
+    const weekday = WEEKDAYS[i];
+    const re = new RegExp(`\\b${weekday.slice(0, 3)}\\w*\\b`);
+    if (re.test(lower)) {
+      const diff = (i - today.getDay() + 7) % 7 || 7;
+      const d = new Date(today);
+      d.setDate(today.getDate() + diff);
+      return isoKey(d);
+    }
   }
   return null;
 };

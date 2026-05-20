@@ -69,3 +69,28 @@ export const updateUserProfile = async (uid, role, updates) => {
     updatedAt: serverTimestamp(),
   });
 };
+
+// Map a raw Firebase Auth error into a short, user-friendly message safe to
+// show directly in the UI. Anything we don't recognise falls back to a generic
+// message instead of leaking "Firebase: Error (auth/…)" strings to the user.
+const AUTH_ERROR_MESSAGES = {
+  'auth/invalid-credential': 'Incorrect email or password. Please try again.',
+  'auth/wrong-password': 'Incorrect email or password. Please try again.',
+  'auth/user-not-found': 'No account found with this email address.',
+  'auth/invalid-email': 'Please enter a valid email address.',
+  'auth/user-disabled': 'This account has been disabled. Please contact support.',
+  'auth/email-already-in-use':
+    'An account already exists with this email. Try logging in instead.',
+  'auth/weak-password': 'Password is too weak — use at least 6 characters.',
+  'auth/missing-password': 'Please enter your password.',
+  'auth/missing-email': 'Please enter your email address.',
+  'auth/too-many-requests':
+    'Too many attempts. Please wait a few minutes and try again.',
+  'auth/network-request-failed':
+    'Network error. Check your internet connection and try again.',
+  'auth/operation-not-allowed': 'This sign-in method is currently unavailable.',
+  'auth/internal-error': 'Something went wrong on our end. Please try again.',
+};
+
+export const getAuthErrorMessage = (error) =>
+  AUTH_ERROR_MESSAGES[error?.code] || 'Something went wrong. Please try again.';

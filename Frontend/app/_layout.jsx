@@ -16,6 +16,7 @@ import { ThemeProvider, useTheme } from '@/src/theme';
 import SplashScreenVideo from '@/src/components/SplashScreenVideo';
 import OnboardingContainer from '@/src/screens/OnboardingContainer';
 import { AuthProvider } from '@/src/context/AuthContext';
+import { FavouritesProvider } from '@/src/context/FavouritesContext';
 
 export {
   ErrorBoundary,
@@ -51,24 +52,26 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <SafeAreaProvider>
-          {!splashFinished ? (
-            <>
-              <StatusBar hidden />
-              <SplashScreenVideo
-                source={require('../assets/videos/splash.mp4')}
-                onFinish={() => setSplashFinished(true)}
-              />
-            </>
-          ) : !onboardingFinished ? (
-            <>
-              <StatusBar style="light" backgroundColor="#000000" />
-              <OnboardingContainer onFinish={() => setOnboardingFinished(true)} />
-            </>
-          ) : (
-            <RootLayoutNav />
-          )}
-        </SafeAreaProvider>
+        <FavouritesProvider>
+          <SafeAreaProvider>
+            {!splashFinished ? (
+              <>
+                <StatusBar hidden />
+                <SplashScreenVideo
+                  source={require('../assets/videos/splash.mp4')}
+                  onFinish={() => setSplashFinished(true)}
+                />
+              </>
+            ) : !onboardingFinished ? (
+              <>
+                <StatusBar style="light" backgroundColor="#000000" />
+                <OnboardingContainer onFinish={() => setOnboardingFinished(true)} />
+              </>
+            ) : (
+              <RootLayoutNav />
+            )}
+          </SafeAreaProvider>
+        </FavouritesProvider>
       </AuthProvider>
     </ThemeProvider>
   );

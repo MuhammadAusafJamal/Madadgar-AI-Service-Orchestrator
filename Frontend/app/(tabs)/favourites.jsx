@@ -18,7 +18,7 @@ import {
   getJobsForProvider,
   getWeekEarningsForProvider,
 } from '@/src/services/bookingService';
-import { getFavouritesForUser } from '@/src/services/favouriteService';
+import { useFavourites } from '@/src/context/FavouritesContext';
 import { FONTS, PALETTE, useTheme } from '@/src/theme';
 
 const formatPriceLabel = (item) => {
@@ -30,40 +30,18 @@ const formatPriceLabel = (item) => {
 function TakerFavourites() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { user } = useAuth();
+  const { favourites, loading, refresh } = useFavourites();
   const styles = makeStyles(colors);
 
-  const [favourites, setFavourites] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!user?.uid) {
-      setFavourites([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    try {
-      const items = await getFavouritesForUser(user.uid);
-      setFavourites(items);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.uid]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await load();
+    await refresh();
     setRefreshing(false);
   };
 
   const openItem = (fav) => {
-    const item = fav.itemData || {};
     router.push({
       pathname: '/service/[id]',
       params: { id: fav.itemId },

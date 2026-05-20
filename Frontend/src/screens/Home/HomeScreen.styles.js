@@ -109,9 +109,9 @@ export const makeStyles = (colors) =>
       fontWeight: '600',
     },
     resultsHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+      // flexDirection: 'row',
+      // alignItems: 'center',
+      // justifyContent: 'space-between',
     },
     emptyWrap: {
       alignItems: 'center',

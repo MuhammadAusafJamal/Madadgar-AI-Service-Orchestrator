@@ -19,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as z from 'zod';
 
 import Input from '@/src/components/Input';
-import { registerUser } from '@/src/services/authService';
+import { getAuthErrorMessage, registerUser } from '@/src/services/authService';
 import { uploadFile } from '@/src/services/uploadService';
 import { useTheme } from '@/src/theme';
 import { makeStyles } from './ProviderSignupScreen.styles';
@@ -143,7 +143,7 @@ export default function ProviderSignupScreen() {
       });
       router.replace('/(tabs)');
     } catch (err) {
-      setServerError(err.message || 'Failed to sign up');
+      setServerError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
       setUploadProgress('');

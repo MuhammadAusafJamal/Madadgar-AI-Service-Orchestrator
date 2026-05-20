@@ -85,7 +85,7 @@ export default function TakerHomeScreen() {
     }
     getUserProfile(user.uid, role)
       .then((data) => !cancelled && setProfile(data))
-      .catch(() => {});
+      .catch(() => { });
     return () => {
       cancelled = true;
     };
@@ -306,17 +306,13 @@ export default function TakerHomeScreen() {
           />
 
           <View style={styles.section}>
-            <View style={styles.resultsHeader}>
+            {/* <View style={styles.resultsHeader}> */}
               <SubHeaderItem
-                title={
-                  selectedCategories.length === 1
-                    ? `${getCategoryById(selectedCategories[0]).name} Services`
-                    : 'Popular Services Near You'
-                }
+                title={selectedCategories.length === 1 ? `${getCategoryById(selectedCategories[0]).name} Services` : 'Popular Services Near You'}
                 navTitle="See all"
                 onPress={() => router.push('/services')}
               />
-            </View>
+            {/* </View> */}
 
             {svcLoading ? (
               <ActivityIndicator color={colors.accent} style={{ paddingVertical: 24 }} />

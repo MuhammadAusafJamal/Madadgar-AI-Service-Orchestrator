@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as z from 'zod';
 
 import Input from '@/src/components/Input';
-import { registerUser } from '@/src/services/authService';
+import { getAuthErrorMessage, registerUser } from '@/src/services/authService';
 import { useTheme } from '@/src/theme';
 import { makeStyles } from './ServiceTakerSignupScreen.styles';
 
@@ -53,7 +53,7 @@ export default function ServiceTakerSignupScreen() {
       await registerUser(email, password, 'service_taker', additionalData);
       router.replace('/(tabs)');
     } catch (err) {
-      setServerError(err.message || 'Failed to sign up');
+      setServerError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }

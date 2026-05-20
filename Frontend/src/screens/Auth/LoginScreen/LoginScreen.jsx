@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Input from '@/src/components/Input';
-import { loginUser } from '@/src/services/authService';
+import { getAuthErrorMessage, loginUser } from '@/src/services/authService';
 import { useTheme } from '@/src/theme';
 import { makeStyles } from './LoginScreen.styles';
 
@@ -38,7 +38,7 @@ export default function LoginScreen() {
       await loginUser(email, password);
       router.replace('/(tabs)');
     } catch (err) {
-      setError(err.message || 'Failed to login');
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }

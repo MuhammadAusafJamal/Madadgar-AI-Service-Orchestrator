@@ -1,9 +1,9 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Image, Text, TouchableOpacity, View } from 'react-native';
 
 import { useAuth } from '@/src/context/AuthContext';
-import { isFavourite, toggleFavourite } from '@/src/services/favouriteService';
+import { useFavourites } from '@/src/context/FavouritesContext';
 import { PALETTE, useTheme } from '@/src/theme';
 import { makeStyles } from './ServiceCard.styles';
 
@@ -19,36 +19,21 @@ export default function ServiceCard({
 }) {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const [favorited, setFavorited] = useState(false);
-  const [toggling, setToggling] = useState(false);
+  const { isFavourite, toggle } = useFavourites();
+  const [busy, setBusy] = useState(false);
   const styles = makeStyles(colors);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!user?.uid || !itemId) {
-      setFavorited(false);
-      return;
-    }
-    isFavourite(user.uid, itemId)
-      .then((v) => !cancelled && setFavorited(v))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.uid, itemId]);
+  // Derived straight from the shared context, so the heart on this card stays
+  // in sync with the Favourites tab and every other card for the same item.
+  const favorited = isFavourite(itemId);
 
   const handleToggleFavourite = async () => {
-    if (!user?.uid || !itemId || toggling) return;
-    setToggling(true);
-    const previous = favorited;
-    setFavorited(!previous);
+    if (!user?.uid || !itemId || busy) return;
+    setBusy(true);
     try {
-      const nowFav = await toggleFavourite(user.uid, itemId, itemData || {});
-      setFavorited(nowFav);
-    } catch {
-      setFavorited(previous);
+      await toggle(itemId, itemData || {});
     } finally {
-      setToggling(false);
+      setBusy(false);
     }
   };
 

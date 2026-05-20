@@ -13,7 +13,12 @@ import {
   View,
 } from 'react-native';
 
-import { TIME_SLOTS, buildDateOptions } from '@/src/constants/booking';
+import {
+  TIME_SLOTS,
+  buildDateOptions,
+  extractClockHour,
+  extractIntentDateKey,
+} from '@/src/constants/booking';
 import { PALETTE } from '@/src/theme';
 import { styles, MUTED } from './BookingConfirmationFlow.styles';
 
@@ -29,52 +34,44 @@ const DEFAULT_QUOTES = [
 const QUOTE_INTERVAL_MS = 1500;
 const DEFAULT_DURATION_MS = 4500;
 
+// Convert a 24-hour hour value to a TIME_SLOTS label, or null when the hour
+// falls outside our bookable 10 AM–9 PM window.
+const hourToSlot = (hh) => {
+  if (hh == null || hh < 10 || hh > 21) return null;
+  const meridian = hh >= 12 ? 'PM' : 'AM';
+  const h12 = hh % 12 || 12;
+  const slot = `${h12}:00 ${meridian}`;
+  return TIME_SLOTS.includes(slot) ? slot : null;
+};
+
 // Map a natural-language time string (from the chat assistant) to the closest
 // matching dateKey + timeSlot from our chips. Returns { dateKey, timeSlot }
-// with either field null when the parser couldn't infer it.
-const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
+// with either field null when the parser couldn't infer it. Date and clock
+// parsing is delegated to the shared helpers in constants/booking so this form
+// resolves dates/times exactly the way the chat validator does.
 const parsePrefilledTime = (text, dateOptions) => {
   const result = { dateKey: null, timeSlot: null };
   if (!text || typeof text !== 'string') return result;
   const lower = text.toLowerCase();
 
-  // Date: today / tomorrow / weekday
-  if (/\btoday\b/.test(lower) || /\bnow\b/.test(lower) || /\basap\b/.test(lower) || /\bavailable\b/.test(lower)) {
+  // Date: today / tomorrow / weekday / explicit calendar date. Only accept it
+  // when it lands inside our bookable window of date chips.
+  const dateKey = extractIntentDateKey(text);
+  if (dateKey && dateOptions.some((d) => d.key === dateKey)) {
+    result.dateKey = dateKey;
+  } else if (/\bavailable\b/.test(lower)) {
     result.dateKey = dateOptions[0]?.key || null;
-  } else if (/\btomorrow\b/.test(lower)) {
-    result.dateKey = dateOptions[1]?.key || null;
-  } else {
-    const today = new Date();
-    for (let i = 0; i < WEEKDAYS.length; i += 1) {
-      const day = WEEKDAYS[i];
-      const re = new RegExp(`\\b${day.slice(0, 3)}\\w*\\b`);
-      if (re.test(lower)) {
-        const diff = (i - today.getDay() + 7) % 7 || 7;
-        const target = dateOptions[diff];
-        if (target) result.dateKey = target.key;
-        break;
-      }
-    }
   }
 
-  // Time: explicit clock OR period word
-  const clock = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
-  if (clock) {
-    const hh = parseInt(clock[1], 10);
-    const meridian = clock[3].toUpperCase();
-    const wanted = `${hh}:00 ${meridian}`;
-    if (TIME_SLOTS.includes(wanted)) result.timeSlot = wanted;
-  } else if (/\bmorning\b/.test(lower)) {
-    result.timeSlot = '10:00 AM';
-  } else if (/\bnoon\b/.test(lower)) {
-    result.timeSlot = '12:00 PM';
-  } else if (/\bafternoon\b/.test(lower)) {
-    result.timeSlot = '2:00 PM';
-  } else if (/\bevening\b/.test(lower)) {
-    result.timeSlot = '6:00 PM';
-  } else if (/\bnight\b/.test(lower)) {
-    result.timeSlot = '8:00 PM';
+  // Time: explicit 12-/24-hour clock snapped to the nearest slot, else a
+  // period word.
+  result.timeSlot = hourToSlot(extractClockHour(text));
+  if (!result.timeSlot) {
+    if (/\bmorning\b/.test(lower)) result.timeSlot = '10:00 AM';
+    else if (/\bnoon\b/.test(lower)) result.timeSlot = '12:00 PM';
+    else if (/\bafternoon\b/.test(lower)) result.timeSlot = '2:00 PM';
+    else if (/\bevening\b/.test(lower)) result.timeSlot = '6:00 PM';
+    else if (/\bnight\b/.test(lower)) result.timeSlot = '8:00 PM';
   }
 
   return result;
