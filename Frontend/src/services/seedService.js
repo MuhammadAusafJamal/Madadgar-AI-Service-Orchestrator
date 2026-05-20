@@ -1,0 +1,525 @@
+import {
+  collection,
+  doc,
+  getCountFromServer,
+  getDocs,
+  query,
+  serverTimestamp,
+  Timestamp,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
+
+import { db } from './firebaseService';
+
+const CATEGORIES = [
+  { id: 'electrician', name: 'Electrician', icon: 'flash-outline', iconColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,0.18)', sortOrder: 1 },
+  { id: 'plumber', name: 'Plumber', icon: 'water-outline', iconColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,0.18)', sortOrder: 2 },
+  { id: 'ac-repair', name: 'AC Repair', icon: 'snow-outline', iconColor: '#06B6D4', backgroundColor: 'rgba(6,182,212,0.18)', sortOrder: 3 },
+  { id: 'cleaning', name: 'Cleaning', icon: 'sparkles-outline', iconColor: '#10B981', backgroundColor: 'rgba(16,185,129,0.18)', sortOrder: 4 },
+  { id: 'carpentry', name: 'Carpentry', icon: 'hammer-outline', iconColor: '#F97316', backgroundColor: 'rgba(249,115,22,0.18)', sortOrder: 5 },
+  { id: 'tutoring', name: 'Tutoring', icon: 'school-outline', iconColor: '#8B5CF6', backgroundColor: 'rgba(139,92,246,0.18)', sortOrder: 6 },
+  { id: 'beauty', name: 'Beauty', icon: 'cut-outline', iconColor: '#EC4899', backgroundColor: 'rgba(236,72,153,0.18)', sortOrder: 7 },
+  { id: 'catering', name: 'Catering', icon: 'restaurant-outline', iconColor: '#EF4444', backgroundColor: 'rgba(239,68,68,0.18)', sortOrder: 8 },
+];
+
+const PROVIDERS = [
+  {
+    uid: 'ahmed-electric',
+    role: 'provider',
+    fullName: 'Ahmed Khan',
+    email: 'ausaffarooqui17@gmail.com',
+    phone: '+92 300 1234567',
+    bio: 'Certified electrician with 8+ years of residential and commercial wiring experience. Specializing in fault detection, panel upgrades and generator integration.',
+    profilePic: 'https://i.pravatar.cc/200?u=ahmed-electric',
+    categoryId: 'electrician',
+    serviceAreas: ['Karachi'],
+    rating: 4.9,
+    reviewCount: 124,
+    completedJobs: 124,
+    verified: true,
+  },
+  {
+    uid: 'malik-plumbing',
+    role: 'provider',
+    fullName: 'Malik Plumbing Co.',
+    email: 'kamilraza1254@gmail.com',
+    phone: '+92 321 9876543',
+    bio: 'Trusted plumbing solutions for homes and offices. 24/7 emergency service available across Karachi.',
+    profilePic: 'https://i.pravatar.cc/200?u=malik-plumbing',
+    categoryId: 'plumber',
+    serviceAreas: ['Karachi', 'Hyderabad'],
+    rating: 4.7,
+    reviewCount: 89,
+    completedJobs: 89,
+    verified: true,
+  },
+  {
+    uid: 'coolair-services',
+    role: 'provider',
+    fullName: 'CoolAir Services',
+    email: 'support@coolair.demo',
+    phone: '+92 333 5556677',
+    bio: 'Specialists in split, window and inverter AC repair, installation, gas refill and annual maintenance contracts.',
+    profilePic: 'https://i.pravatar.cc/200?u=coolair',
+    categoryId: 'ac-repair',
+    serviceAreas: ['Lahore'],
+    rating: 4.8,
+    reviewCount: 156,
+    completedJobs: 156,
+    verified: true,
+  },
+  {
+    uid: 'sparkle-cleaning',
+    role: 'provider',
+    fullName: 'Sparkle Home Cleaning',
+    email: 'hello@sparkle.demo',
+    phone: '+92 322 4445566',
+    bio: 'Deep cleaning, move-in / move-out, and recurring home cleaning packages. Trained staff, eco-friendly products.',
+    profilePic: 'https://i.pravatar.cc/200?u=sparkle',
+    categoryId: 'cleaning',
+    serviceAreas: ['Islamabad', 'Rawalpindi'],
+    rating: 4.9,
+    reviewCount: 203,
+    completedJobs: 203,
+    verified: true,
+  },
+  {
+    uid: 'woodcraft-studio',
+    role: 'provider',
+    fullName: 'Woodcraft Studio',
+    email: 'info@woodcraft.demo',
+    phone: '+92 301 7778899',
+    bio: 'Bespoke wardrobes, kitchens and cabinets. Premium board, soft-close fittings, master craftsmen.',
+    profilePic: 'https://i.pravatar.cc/200?u=woodcraft',
+    categoryId: 'carpentry',
+    serviceAreas: ['Karachi'],
+    rating: 4.6,
+    reviewCount: 67,
+    completedJobs: 67,
+    verified: true,
+  },
+  {
+    uid: 'learnwise-tutors',
+    role: 'provider',
+    fullName: 'LearnWise Tutors',
+    email: 'contact@learnwise.demo',
+    phone: '+92 345 1112233',
+    bio: 'Cambridge O/A Level coaches for Maths, Physics, Chemistry and English. Online or in-home.',
+    profilePic: 'https://i.pravatar.cc/200?u=learnwise',
+    categoryId: 'tutoring',
+    serviceAreas: ['Karachi', 'Online'],
+    rating: 4.9,
+    reviewCount: 312,
+    completedJobs: 312,
+    verified: true,
+  },
+  {
+    uid: 'zaiqa-catering',
+    role: 'provider',
+    fullName: 'Zaiqa Catering',
+    email: 'orders@zaiqa.demo',
+    phone: '+92 312 2223344',
+    bio: 'Wedding, corporate and personal catering. Authentic Pakistani and continental menus, live stations and waiting staff.',
+    profilePic: 'https://i.pravatar.cc/200?u=zaiqa',
+    categoryId: 'catering',
+    serviceAreas: ['Karachi', 'Lahore'],
+    rating: 4.8,
+    reviewCount: 145,
+    completedJobs: 145,
+    verified: true,
+  },
+];
+
+const SERVICES = [
+  {
+    id: 'e1',
+    title: 'Home Wiring Inspection & Repair',
+    description: 'Full-home electrical inspection, fault detection and minor repairs. Includes breaker panel check and earthing test.',
+    highlights: ['Licensed electrician', '30-day workmanship warranty', 'Basic materials included'],
+    basePrice: 2500,
+    priceUnit: 'visit',
+    duration: '2 hrs',
+    image: 'https://picsum.photos/seed/madadgar-e1/600/400',
+    providerId: 'ahmed-electric',
+    categoryId: 'electrician',
+    location: 'Karachi',
+    rating: 4.9,
+    reviewCount: 47,
+    active: true,
+  },
+  {
+    id: 'e2',
+    title: 'Generator Installation',
+    description: 'Installation and load balancing for residential generators up to 15 KVA. Includes changeover switch wiring.',
+    highlights: ['Up to 15 KVA', 'Load balancing included', 'Same-day where possible'],
+    basePrice: 8000,
+    priceUnit: 'visit',
+    duration: '4-6 hrs',
+    image: 'https://picsum.photos/seed/madadgar-e2/600/400',
+    providerId: 'ahmed-electric',
+    categoryId: 'electrician',
+    location: 'Karachi',
+    rating: 4.8,
+    reviewCount: 21,
+    active: true,
+  },
+  {
+    id: 'p1',
+    title: 'Leak Detection & Fix',
+    description: 'Find and seal leaks in pipes, tanks and fittings. No-dig methods used wherever possible.',
+    highlights: ['Same-day service', 'No-dig where possible', '14-day guarantee on fix'],
+    basePrice: 2200,
+    priceUnit: 'visit',
+    duration: '1-2 hrs',
+    image: 'https://picsum.photos/seed/madadgar-p1/600/400',
+    providerId: 'malik-plumbing',
+    categoryId: 'plumber',
+    location: 'Karachi',
+    rating: 4.7,
+    reviewCount: 34,
+    active: true,
+  },
+  {
+    id: 'p2',
+    title: 'Bathroom Fittings Install',
+    description: 'Sink, faucet, shower and toilet installation. New construction or replacement.',
+    highlights: ['Brass fittings', 'Includes silicone sealing', 'Old fittings disposed'],
+    basePrice: 4500,
+    priceUnit: 'visit',
+    duration: '3-5 hrs',
+    image: 'https://picsum.photos/seed/madadgar-p2/600/400',
+    providerId: 'malik-plumbing',
+    categoryId: 'plumber',
+    location: 'Karachi',
+    rating: 4.8,
+    reviewCount: 18,
+    active: true,
+  },
+  {
+    id: 'ac1',
+    title: 'Split AC Servicing',
+    description: 'Complete servicing of split AC units — coil cleaning, gas check, filter wash, drain clearing.',
+    highlights: ['Coil deep clean', 'Gas pressure check', 'Filter wash included'],
+    basePrice: 1800,
+    priceUnit: 'per unit',
+    duration: '1 hr',
+    image: 'https://picsum.photos/seed/madadgar-ac1/600/400',
+    providerId: 'coolair-services',
+    categoryId: 'ac-repair',
+    location: 'Lahore',
+    rating: 4.8,
+    reviewCount: 62,
+    active: true,
+  },
+  {
+    id: 'ac2',
+    title: 'AC Gas Refill & Pressure Check',
+    description: 'Refrigerant top-up, leak test and performance check for all AC types and tonnages.',
+    highlights: ['All gas types', 'Leak test included', '90-day cooling warranty'],
+    basePrice: 3500,
+    priceUnit: 'per unit',
+    duration: '1-2 hrs',
+    image: 'https://picsum.photos/seed/madadgar-ac2/600/400',
+    providerId: 'coolair-services',
+    categoryId: 'ac-repair',
+    location: 'Lahore',
+    rating: 4.9,
+    reviewCount: 44,
+    active: true,
+  },
+  {
+    id: 'c1',
+    title: 'Deep Home Cleaning — 2BR',
+    description: 'Top-to-bottom cleaning for a 2-bedroom home — kitchen, bathrooms, fans, AC vents, floors and windows.',
+    highlights: ['4-person team', 'Eco-friendly products', 'Tools included'],
+    basePrice: 5500,
+    priceUnit: 'visit',
+    duration: '4-6 hrs',
+    image: 'https://picsum.photos/seed/madadgar-c1/600/400',
+    providerId: 'sparkle-cleaning',
+    categoryId: 'cleaning',
+    location: 'Islamabad',
+    rating: 4.9,
+    reviewCount: 88,
+    active: true,
+  },
+  {
+    id: 'c2',
+    title: 'Move-in / Move-out Cleaning',
+    description: 'Fresh-start cleaning for new homes or end-of-lease handover. Includes wall scrubbing and cabinet interiors.',
+    highlights: ['Wall scrubbing', 'Cabinet interiors', 'Landlord-ready finish'],
+    basePrice: 7500,
+    priceUnit: 'visit',
+    duration: '5-7 hrs',
+    image: 'https://picsum.photos/seed/madadgar-c2/600/400',
+    providerId: 'sparkle-cleaning',
+    categoryId: 'cleaning',
+    location: 'Islamabad',
+    rating: 4.9,
+    reviewCount: 52,
+    active: true,
+  },
+  {
+    id: 'w1',
+    title: 'Custom Wardrobes',
+    description: 'Made-to-measure wardrobes in premium board with soft-close fittings and full-height mirrors.',
+    highlights: ['Premium board', 'Soft-close fittings', 'Free design consult'],
+    basePrice: 35000,
+    priceUnit: 'starting',
+    duration: '5-7 days',
+    image: 'https://picsum.photos/seed/madadgar-w1/600/400',
+    providerId: 'woodcraft-studio',
+    categoryId: 'carpentry',
+    location: 'Karachi',
+    rating: 4.7,
+    reviewCount: 19,
+    active: true,
+  },
+  {
+    id: 'w2',
+    title: 'Kitchen Cabinet Refurbishment',
+    description: 'Re-laminate, re-handle and re-fit existing kitchen cabinets — like-new look without the rebuild.',
+    highlights: ['No tear-down', '3-day turnaround', '1-year warranty on laminates'],
+    basePrice: 22000,
+    priceUnit: 'starting',
+    duration: '3-5 days',
+    image: 'https://picsum.photos/seed/madadgar-w2/600/400',
+    providerId: 'woodcraft-studio',
+    categoryId: 'carpentry',
+    location: 'Karachi',
+    rating: 4.6,
+    reviewCount: 12,
+    active: true,
+  },
+  {
+    id: 't1',
+    title: 'O / A Level Maths Tutoring',
+    description: 'Cambridge-aligned coaching, weekly past-paper drills, concept reinforcement and exam strategy sessions.',
+    highlights: ['Cambridge-aligned', 'Weekly past-papers', 'Monthly progress report'],
+    basePrice: 4500,
+    priceUnit: 'per month',
+    duration: '4 sessions / wk',
+    image: 'https://picsum.photos/seed/madadgar-t1/600/400',
+    providerId: 'learnwise-tutors',
+    categoryId: 'tutoring',
+    location: 'Karachi',
+    rating: 4.9,
+    reviewCount: 76,
+    active: true,
+  },
+  {
+    id: 't2',
+    title: 'Online English & Writing Coaching',
+    description: 'Improve essay structure, vocabulary and exam performance. 1-on-1 over Zoom with weekly written feedback.',
+    highlights: ['1-on-1 Zoom', 'Weekly writing feedback', 'Exam-strategy sessions'],
+    basePrice: 3500,
+    priceUnit: 'per month',
+    duration: '3 sessions / wk',
+    image: 'https://picsum.photos/seed/madadgar-t2/600/400',
+    providerId: 'learnwise-tutors',
+    categoryId: 'tutoring',
+    location: 'Online',
+    rating: 4.8,
+    reviewCount: 41,
+    active: true,
+  },
+  {
+    id: 'cat1',
+    title: 'Wedding Catering — 100 guests',
+    description: 'Full-service menu, live stations, crockery, glassware and waiting staff. Custom menu options available.',
+    highlights: ['Live stations', 'Crockery + staff', 'Custom menu options'],
+    basePrice: 220000,
+    priceUnit: 'event',
+    duration: 'event day',
+    image: 'https://picsum.photos/seed/madadgar-cat1/600/400',
+    providerId: 'zaiqa-catering',
+    categoryId: 'catering',
+    location: 'Karachi',
+    rating: 4.9,
+    reviewCount: 33,
+    active: true,
+  },
+  {
+    id: 'cat2',
+    title: 'Corporate Lunch Service',
+    description: 'Daily or weekly office lunch delivery. Hot, fresh, hygienically packed with rotating weekly menu.',
+    highlights: ['Rotating menu', 'Hot delivery', 'Minimum 10 heads'],
+    basePrice: 350,
+    priceUnit: 'per head',
+    duration: 'recurring',
+    image: 'https://picsum.photos/seed/madadgar-cat2/600/400',
+    providerId: 'zaiqa-catering',
+    categoryId: 'catering',
+    location: 'Karachi',
+    rating: 4.8,
+    reviewCount: 28,
+    active: true,
+  },
+];
+
+const REVIEWS = [
+  { id: 'rv1', serviceId: 'e1', providerId: 'ahmed-electric', takerName: 'Hassan A.', takerAvatar: 'https://i.pravatar.cc/100?u=hassan-r', stars: 5, text: 'Ahmed showed up on time and fixed three faults in our breaker box that two other electricians had missed. Excellent work.' },
+  { id: 'rv2', serviceId: 'e1', providerId: 'ahmed-electric', takerName: 'Sara K.', takerAvatar: 'https://i.pravatar.cc/100?u=sara-r', stars: 5, text: 'Very professional. Walked me through every issue and what it would cost before starting.' },
+  { id: 'rv3', serviceId: 'ac1', providerId: 'coolair-services', takerName: 'Bilal R.', takerAvatar: 'https://i.pravatar.cc/100?u=bilal-r', stars: 5, text: 'AC was barely cooling. After their service it feels brand new. Worth every rupee.' },
+  { id: 'rv4', serviceId: 'ac1', providerId: 'coolair-services', takerName: 'Anum F.', takerAvatar: 'https://i.pravatar.cc/100?u=anum-r', stars: 4, text: 'Good service, slightly delayed arrival but the work itself was solid.' },
+  { id: 'rv5', serviceId: 'c1', providerId: 'sparkle-cleaning', takerName: 'Maham T.', takerAvatar: 'https://i.pravatar.cc/100?u=maham-r', stars: 5, text: 'Best deep clean I have ever had. Spotless and on schedule.' },
+  { id: 'rv6', serviceId: 'c1', providerId: 'sparkle-cleaning', takerName: 'Faraz J.', takerAvatar: 'https://i.pravatar.cc/100?u=faraz-r', stars: 5, text: 'Team was friendly and very thorough. Will book again.' },
+  { id: 'rv7', serviceId: 'p1', providerId: 'malik-plumbing', takerName: 'Mehak S.', takerAvatar: 'https://i.pravatar.cc/100?u=mehak-r', stars: 5, text: 'Found and fixed a leak our last plumber missed. Saved us thousands in damage.' },
+  { id: 'rv8', serviceId: 't1', providerId: 'learnwise-tutors', takerName: 'Zara M.', takerAvatar: 'https://i.pravatar.cc/100?u=zara-r', stars: 5, text: 'My son\'s grades went from C to A in one term. Highly recommended.' },
+  { id: 'rv9', serviceId: 'cat1', providerId: 'zaiqa-catering', takerName: 'Imran H.', takerAvatar: 'https://i.pravatar.cc/100?u=imran-r', stars: 5, text: 'Catered our wedding for 120 people flawlessly. Food was incredible, service was on point.' },
+  { id: 'rv10', serviceId: 'w1', providerId: 'woodcraft-studio', takerName: 'Hina A.', takerAvatar: 'https://i.pravatar.cc/100?u=hina-r', stars: 4, text: 'Beautiful finish on our wardrobes. Took a day longer than promised but worth it.' },
+];
+
+const todayAt = (hour, minute = 0) => {
+  const d = new Date();
+  d.setHours(hour, minute, 0, 0);
+  return Timestamp.fromDate(d);
+};
+
+const daysFromNow = (days, hour = 10) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  d.setHours(hour, 0, 0, 0);
+  return Timestamp.fromDate(d);
+};
+
+const demoProviderBookings = () => [
+  {
+    serviceId: 'demo-1',
+    serviceTitle: 'AC unit not cooling — need urgent check',
+    takerId: 'demo-taker-1',
+    takerName: 'Ali Raza',
+    takerAvatar: 'https://i.pravatar.cc/100?u=ali',
+    status: 'pending',
+    scheduledAt: daysFromNow(1, 9),
+    location: 'DHA Phase 6, Karachi',
+    price: 3500,
+    notes: 'Split AC in master bedroom. Started making noise yesterday.',
+  },
+  {
+    serviceId: 'demo-2',
+    serviceTitle: 'Event catering for 40 guests',
+    takerId: 'demo-taker-2',
+    takerName: 'Sara Khan',
+    takerAvatar: 'https://i.pravatar.cc/100?u=sara',
+    status: 'pending',
+    scheduledAt: daysFromNow(4, 19),
+    location: 'Clifton Block 2, Karachi',
+    price: 95000,
+    notes: 'Sit-down dinner. Pakistani fusion preferred.',
+  },
+  {
+    serviceId: 'demo-3',
+    serviceTitle: 'Generator maintenance',
+    takerId: 'demo-taker-3',
+    takerName: 'Hassan K.',
+    takerAvatar: 'https://i.pravatar.cc/100?u=hassan',
+    status: 'accepted',
+    scheduledAt: todayAt(14),
+    location: 'Bahria Town, Karachi',
+    price: 4500,
+    notes: '',
+  },
+  {
+    serviceId: 'demo-4',
+    serviceTitle: 'Home wiring repair',
+    takerId: 'demo-taker-4',
+    takerName: 'Mehak S.',
+    takerAvatar: 'https://i.pravatar.cc/100?u=mehak',
+    status: 'completed',
+    scheduledAt: daysFromNow(-3, 11),
+    location: 'Gulshan-e-Iqbal, Karachi',
+    price: 2500,
+    notes: '',
+  },
+];
+
+const demoTakerBookings = () => [
+  {
+    providerId: 'ahmed-electric',
+    providerName: 'Ahmed Khan',
+    serviceId: 'e1',
+    serviceTitle: 'Home Wiring Inspection & Repair',
+    status: 'pending',
+    scheduledAt: daysFromNow(2, 10),
+    location: 'DHA Phase 5, Karachi',
+    price: 2500,
+    notes: '',
+  },
+  {
+    providerId: 'coolair-services',
+    providerName: 'CoolAir Services',
+    serviceId: 'ac1',
+    serviceTitle: 'Split AC Servicing',
+    status: 'accepted',
+    scheduledAt: todayAt(16),
+    location: 'DHA Phase 5, Karachi',
+    price: 1800,
+    notes: 'Two units to service.',
+  },
+  {
+    providerId: 'sparkle-cleaning',
+    providerName: 'Sparkle Home Cleaning',
+    serviceId: 'c1',
+    serviceTitle: 'Deep Home Cleaning — 2BR',
+    status: 'completed',
+    scheduledAt: daysFromNow(-7, 9),
+    location: 'DHA Phase 5, Karachi',
+    price: 5500,
+    notes: '',
+  },
+];
+
+export const isSeeded = async () => {
+  const snap = await getCountFromServer(collection(db, 'categories'));
+  return snap.data().count > 0;
+};
+
+const clearDemoBookingsForUser = async ({ currentUid, role }) => {
+  const field = role === 'provider' ? 'providerId' : 'takerId';
+  const q = query(collection(db, 'bookings'), where(field, '==', currentUid));
+  const snap = await getDocs(q);
+  if (snap.empty) return;
+  const batch = writeBatch(db);
+  snap.docs.forEach((d) => {
+    if (d.data().isDemo) batch.delete(d.ref);
+  });
+  await batch.commit();
+};
+
+export const seedFirestore = async ({ currentUid, role } = {}) => {
+  const universal = writeBatch(db);
+  CATEGORIES.forEach((c) =>
+    universal.set(doc(db, 'categories', c.id), { ...c, createdAt: serverTimestamp() }),
+  );
+  PROVIDERS.forEach((p) =>
+    universal.set(doc(db, 'providers', p.uid), { ...p, createdAt: serverTimestamp() }),
+  );
+  SERVICES.forEach((s) =>
+    universal.set(doc(db, 'services', s.id), { ...s, createdAt: serverTimestamp() }),
+  );
+  REVIEWS.forEach((r) =>
+    universal.set(doc(db, 'reviews', r.id), { ...r, createdAt: serverTimestamp() }),
+  );
+  await universal.commit();
+
+  if (!currentUid) {
+    return { universalSeeded: true, demoBookingsSeeded: 0 };
+  }
+
+  await clearDemoBookingsForUser({ currentUid, role });
+
+  const bookings = role === 'provider' ? demoProviderBookings() : demoTakerBookings();
+  const userBatch = writeBatch(db);
+  bookings.forEach((b) => {
+    const ref = doc(collection(db, 'bookings'));
+    const payload = role === 'provider'
+      ? { ...b, providerId: currentUid, isDemo: true, createdAt: serverTimestamp() }
+      : { ...b, takerId: currentUid, isDemo: true, createdAt: serverTimestamp() };
+    userBatch.set(ref, payload);
+  });
+  await userBatch.commit();
+
+  return { universalSeeded: true, demoBookingsSeeded: bookings.length };
+};
