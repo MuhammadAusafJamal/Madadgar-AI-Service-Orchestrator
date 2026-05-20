@@ -191,6 +191,15 @@ export default function ChatScreen() {
               </Text>
             </>
           )}
+          {typeof service._match?.distanceKm === 'number' && (
+            <>
+              <Text style={styles.suggestionMetaDot}>·</Text>
+              <Ionicons name="navigate-outline" size={11} color={colors.textSecondary} />
+              <Text style={styles.suggestionMeta}>
+                {service._match.distanceKm.toFixed(1)} km
+              </Text>
+            </>
+          )}
         </View>
         {!!formatPrice(service) && (
           <Text style={styles.suggestionPrice}>{formatPrice(service)}</Text>

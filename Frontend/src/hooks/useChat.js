@@ -10,6 +10,7 @@ import {
   validateIntentDate,
 } from '@/src/constants/booking';
 import { useAuth } from '@/src/context/AuthContext';
+import { rankByMatch, resolveCoordinates } from '@/src/services/matchingService';
 import { getServices } from '@/src/services/serviceService';
 
 function makeId() {
@@ -55,30 +56,21 @@ function inferCategoryIds(serviceText = '') {
   return Array.from(new Set(ids));
 }
 
+// Rank the catalog for a chat intent using the weighted match algorithm — a
+// blend of review rating and proximity to the user's stated address. See
+// matchingService.rankByMatch.
 async function findMatchingServices(intent) {
   if (!intent?.service) return [];
   const categoryIds = inferCategoryIds(intent.service);
   try {
-    let items = await getServices({
+    const items = await getServices({
       categoryIds,
       search: categoryIds.length ? '' : intent.service,
       sortBy: 'rating',
-      max: 5,
+      max: 10,
     });
-    // Light location-aware re-ranking: services whose location contains a token
-    // from the intent.location bubble up first.
-    if (intent.location && items.length > 1) {
-      const locTokens = intent.location.toLowerCase().split(/[\s,]+/).filter(Boolean);
-      items = items
-        .map((s) => {
-          const loc = (s.location || '').toLowerCase();
-          const score = locTokens.reduce((acc, t) => acc + (loc.includes(t) ? 1 : 0), 0);
-          return { s, score };
-        })
-        .sort((a, b) => b.score - a.score)
-        .map((x) => x.s);
-    }
-    return items.slice(0, 3);
+    const userCoords = resolveCoordinates(intent.location || '');
+    return rankByMatch(items, userCoords).slice(0, 3);
   } catch (err) {
     return [];
   }

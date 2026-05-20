@@ -154,3 +154,66 @@ service details screen.
 
 **Files changed:** `src/screens/ServiceDetails/ServiceDetails.jsx`,
 `src/screens/ServiceDetails/ServiceDetails.styles.js`.
+
+### 8. Provider matching algorithm (rating + proximity)
+
+**Requested:** Rank providers by two weighted criteria — review rating and
+proximity to the user's address — and add realistic lat/lng to the mock data.
+
+**Implementation:**
+- `src/services/matchingService.js` (new) — `haversineKm()` great-circle
+  distance, `resolveCoordinates()` (free-text address → lat/lng via an offline
+  Pakistani city/neighbourhood lookup, no geocoding API), and `rankByMatch()`
+  which scores each candidate `0.6 × rating + 0.4 × proximity`
+  (weights in `MATCH_WEIGHTS`). Proximity score is `1 − distance / 25km`,
+  clamped to 0–1; candidates with no coordinates get a neutral 0.5.
+- `src/services/seedService.js` — added realistic `lat`/`lng` to every provider
+  and service (spread across real Karachi / Lahore / Islamabad coordinates).
+- `src/hooks/useChat.js` — `findMatchingServices` now ranks results with
+  `rankByMatch`, using the chat intent's location as the user's address.
+- `src/screens/Chat/ChatScreen.jsx` — suggestion cards now show the distance
+  ("X.X km") so the proximity ranking is visible.
+
+**Action needed:** Tap "Reseed Demo Data" in Profile so the existing
+services/providers in Firestore pick up the new `lat`/`lng` fields.
+
+### 9. ⏳ DEFERRED — Switch the matching system to real data
+
+**Status:** Not started. The user will implement this later and asked to keep
+this reference here. When picking it up, start from this section.
+
+**Goal:** Replace the mocked inputs of the matching algorithm with real data.
+The algorithm itself (`matchingService.js` — `haversineKm`, `rankByMatch`,
+`MATCH_WEIGHTS`) does **not** change. Only three data inputs become real:
+
+1. **Provider / service coordinates** — captured at provider signup instead of
+   hardcoded in `seedService.js`. Options: GPS via `expo-location`
+   ("use my current location"), a `react-native-maps` pin picker, or geocoding
+   the typed address. Store real `lat`/`lng` on the provider/service docs.
+2. **User location** — replace the offline `resolveCoordinates()` lookup table.
+   Options: device GPS via `expo-location` (best, free, no key) for
+   "near me", or geocode a typed address. Keep `resolveCoordinates()` as a
+   fallback when GPS is denied / address unresolved.
+3. **Ratings** — compute `rating` / `reviewCount` from the real `reviews`
+   collection (aggregate on new review via a Cloud Function / backend, or
+   aggregate on read) instead of the static seeded number.
+
+**Cheapest path (no API keys, no cost):** `expo-location` GPS for both provider
+signup and user location + aggregate ratings from existing reviews. A geocoding
+API is only needed if users must type arbitrary addresses.
+
+**Infrastructure if geocoding typed addresses:**
+- A geocoding provider — Nominatim/OpenStreetMap (free, no key), or Google /
+  LocationIQ / Geoapify / Mapbox (free tiers, key required).
+- API keys must NOT be in the app — add a backend route
+  `GET /api/geo/geocode?address=...` that calls the provider server-side.
+- `npx expo install expo-location` + location permission strings in `app.json`.
+- At real scale: geohashing (`geofire-common`) for "within X km" Firestore
+  queries — not needed for the hackathon.
+
+**Files that would change:** `ProviderSignupScreen.jsx` (capture coordinates),
+`serviceService.js` `addService` (store lat/lng), `matchingService.js`
+(`resolveCoordinates` → GPS/geocoding, kept as fallback), `useChat.js` + booking
+form (user coords from GPS/geocoded address), `app.json` (permissions); new:
+reviews→rating aggregation, optional `/api/geo/geocode` backend route.
+`seedService.js` stops being the source of coordinates.
