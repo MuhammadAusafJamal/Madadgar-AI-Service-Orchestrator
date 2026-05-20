@@ -126,13 +126,26 @@ const buildEmails = (event, booking) => {
          ${details}`,
       ),
     });
+  } else if (event === 'completed') {
+    emails.push({
+      to: booking.takerEmail,
+      toName: booking.takerName,
+      subject: `Service completed — ${booking.serviceTitle || 'Madadgar'}`,
+      html: shell(
+        'Your service is complete ✅',
+        '#16a34a',
+        `<p style="color:#374151;font-size:14px;">Hi ${firstName(booking.takerName)},</p>
+         <p style="color:#374151;font-size:14px;"><b>${esc(booking.providerName)}</b> has marked your booking as completed. We hope it went well — please take a moment to rate your experience in the Madadgar app.</p>
+         ${details}`,
+      ),
+    });
   }
 
   return emails.filter((email) => email.to);
 };
 
 // POST /api/email/booking  { event, booking }
-// event: 'created' | 'accepted' | 'declined'
+// event: 'created' | 'accepted' | 'declined' | 'completed'
 router.post('/booking', async (req, res) => {
   const { event, booking } = req.body || {};
 
@@ -141,7 +154,7 @@ router.post('/booking', async (req, res) => {
       .status(400)
       .json({ success: false, message: 'event and booking are required' });
   }
-  if (!['created', 'accepted', 'declined'].includes(event)) {
+  if (!['created', 'accepted', 'declined', 'completed'].includes(event)) {
     return res
       .status(400)
       .json({ success: false, message: `Unknown event "${event}"` });

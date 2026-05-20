@@ -165,6 +165,7 @@ export default function TakerHomeScreen() {
             username: firstName,
             unreadNotificationCount: 0,
             onAvatarPress: () => router.push('/(tabs)/profile'),
+            onBellPress: () => router.push('/notifications'),
           }}
         />
 

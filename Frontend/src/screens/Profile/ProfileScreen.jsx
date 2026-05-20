@@ -1,7 +1,7 @@
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -37,34 +37,38 @@ export default function ProfileScreen() {
   const [favouritesCount, setFavouritesCount] = useState(null);
   const [seeding, setSeeding] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Re-fetch every time the Profile tab regains focus, so changes made on the
+  // Edit Profile screen show up immediately when the user returns.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
 
-    if (!user?.uid || !role) {
-      setProfile(null);
-      setBookingsCount(null);
-      setFavouritesCount(null);
-      setProfileLoading(false);
-      return;
-    }
+      if (!user?.uid || !role) {
+        setProfile(null);
+        setBookingsCount(null);
+        setFavouritesCount(null);
+        setProfileLoading(false);
+        return undefined;
+      }
 
-    setProfileLoading(true);
-    Promise.all([
-      getUserProfile(user.uid, role).catch(() => null),
-      getBookingsCountByUser(user.uid).catch(() => 0),
-      getFavouritesCountByUser(user.uid).catch(() => 0),
-    ]).then(([data, bCount, fCount]) => {
-      if (cancelled) return;
-      setProfile(data);
-      setBookingsCount(bCount);
-      setFavouritesCount(fCount);
-      setProfileLoading(false);
-    });
+      setProfileLoading(true);
+      Promise.all([
+        getUserProfile(user.uid, role).catch(() => null),
+        getBookingsCountByUser(user.uid).catch(() => 0),
+        getFavouritesCountByUser(user.uid).catch(() => 0),
+      ]).then(([data, bCount, fCount]) => {
+        if (cancelled) return;
+        setProfile(data);
+        setBookingsCount(bCount);
+        setFavouritesCount(fCount);
+        setProfileLoading(false);
+      });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.uid, role]);
+      return () => {
+        cancelled = true;
+      };
+    }, [user?.uid, role]),
+  );
 
   const handleLogout = async () => {
     try {

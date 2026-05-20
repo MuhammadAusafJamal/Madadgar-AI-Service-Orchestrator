@@ -10,6 +10,7 @@ import {
   validateIntentDate,
 } from '@/src/constants/booking';
 import { useAuth } from '@/src/context/AuthContext';
+import { rankByMatch, resolveCoordinates } from '@/src/services/matchingService';
 import { getServices } from '@/src/services/serviceService';
 
 function makeId() {
@@ -55,33 +56,91 @@ function inferCategoryIds(serviceText = '') {
   return Array.from(new Set(ids));
 }
 
+// Rank the catalog for a chat intent using the weighted match algorithm — a
+// blend of review rating and proximity to the user's stated address. See
+// matchingService.rankByMatch.
 async function findMatchingServices(intent) {
   if (!intent?.service) return [];
   const categoryIds = inferCategoryIds(intent.service);
   try {
-    let items = await getServices({
+    const items = await getServices({
       categoryIds,
       search: categoryIds.length ? '' : intent.service,
       sortBy: 'rating',
-      max: 5,
+      max: 10,
     });
-    // Light location-aware re-ranking: services whose location contains a token
-    // from the intent.location bubble up first.
-    if (intent.location && items.length > 1) {
-      const locTokens = intent.location.toLowerCase().split(/[\s,]+/).filter(Boolean);
-      items = items
-        .map((s) => {
-          const loc = (s.location || '').toLowerCase();
-          const score = locTokens.reduce((acc, t) => acc + (loc.includes(t) ? 1 : 0), 0);
-          return { s, score };
-        })
-        .sort((a, b) => b.score - a.score)
-        .map((x) => x.s);
-    }
-    return items.slice(0, 3);
+    const userCoords = resolveCoordinates(intent.location || '');
+    return rankByMatch(items, userCoords).slice(0, 3);
   } catch (err) {
     return [];
   }
+}
+
+// Author the human-worded "How I worked this out" steps for an assistant turn
+// (Challenge 2, point 6 — "show complete reasoning and workflow execution").
+// Returns [] for greetings / smalltalk where a workflow trace is just noise.
+function buildWorkflowSteps({
+  intent,
+  hasCompleteIntent,
+  needsTimePick,
+  needsDatePick,
+  suggestions,
+  greeted,
+}) {
+  if (greeted) return [];
+  if (!intent || (!intent.service && !hasCompleteIntent)) return [];
+
+  const steps = [
+    {
+      icon: 'sparkles-outline',
+      title: 'Understood your request',
+      detail:
+        [intent.service, intent.location, intent.time]
+          .filter(Boolean)
+          .join(' · ') || null,
+    },
+  ];
+
+  if (!hasCompleteIntent) {
+    steps.push({
+      icon: 'help-circle-outline',
+      title: 'Asked for the missing details',
+      detail: 'Service, location and time are all needed to continue',
+    });
+    return steps;
+  }
+
+  if (needsTimePick || needsDatePick) {
+    steps.push({
+      icon: 'time-outline',
+      title: 'Checked the requested time against booking hours',
+      detail: 'Not bookable as-is — offered valid slots to pick from',
+    });
+    return steps;
+  }
+
+  steps.push({ icon: 'search-outline', title: 'Searched the provider catalog' });
+  steps.push({
+    icon: 'podium-outline',
+    title: `Found ${suggestions.length} matching ${
+      suggestions.length === 1 ? 'provider' : 'providers'
+    }`,
+    detail: suggestions.length
+      ? 'Ranked by rating, availability & distance'
+      : 'No catalog match — suggested alternatives',
+  });
+  if (suggestions.length > 0) {
+    steps.push({
+      icon: 'star-outline',
+      title: `Recommended: ${suggestions[0].title || 'top match'}`,
+      detail: suggestions[0]._match?.reason || null,
+    });
+    steps.push({
+      icon: 'checkmark-circle-outline',
+      title: 'Ready to book — pick a provider below',
+    });
+  }
+  return steps;
 }
 
 export function useChat() {
@@ -205,6 +264,17 @@ export function useChat() {
           finalText = `Hi! I'm Madadgar — your AI service assistant. Tell me what you need and I'll find and book a trusted provider for you. We provide:`;
         }
 
+        // Author the human-worded workflow steps for the reasoning panel
+        // (Challenge 2, point 6) and keep the raw backend agent trace too.
+        const workflowSteps = buildWorkflowSteps({
+          intent,
+          hasCompleteIntent,
+          needsTimePick,
+          needsDatePick,
+          suggestions,
+          greeted,
+        });
+
         setMessages((prev) => [
           ...prev,
           {
@@ -213,6 +283,8 @@ export function useChat() {
             text: finalText,
             intent,
             suggestions,
+            steps: workflowSteps,
+            trace: Array.isArray(result?.logs) ? result.logs : [],
             needsTimePick,
             needsDatePick,
             availableTimeSlots: needsTimePick ? TIME_SLOTS : null,

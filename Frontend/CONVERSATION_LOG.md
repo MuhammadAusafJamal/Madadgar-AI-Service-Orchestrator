@@ -2,6 +2,10 @@
 
 A running record of debugging/feature work done with Claude Code. Newest session at the top.
 
+> **Reference note:** This log is the project's reference for all work done so
+> far. When the user says "do this" or refers back to earlier work, take
+> reference from the relevant entry below.
+
 ---
 
 ## Session — 2026-05-20
@@ -59,6 +63,7 @@ own list and only loaded once on mount. Changes on one screen never reached
 others.
 
 **Fix:** Introduced a shared `FavouritesContext` as the single source of truth.
+
 - New `src/context/FavouritesContext.jsx` — holds the favourites list, exposes
   `isFavourite()`, `toggle()` (optimistic, with Firestore rollback) and
   `refresh()`.
@@ -103,12 +108,14 @@ relay** using **Nodemailer** (free tier: 300 emails/day, no credit card, only a
 single verified sender address needed).
 
 **Events covered:**
+
 - Booking created → emails the **taker** (confirmation) and the **provider**
   ("new booking request").
 - Provider accepts → emails the taker.
 - Provider declines → emails the taker.
 
 **Backend (`/Backend`):**
+
 - `utils/email.js` (new) — `sendEmail()` transport over SMTP via Nodemailer.
   Best-effort: never throws; skips cleanly if SMTP vars are unset.
 - `package.json` — added the `nodemailer` dependency.
@@ -117,6 +124,7 @@ single verified sender address needed).
 - `server.js` — registered `app.use('/api/email', emailRoutes)`.
 
 **Frontend (`/Frontend`):**
+
 - `src/api/endpoints/email.js` (new) — `sendBookingEmail({ event, booking })`.
 - `src/services/bookingService.js` — `saveBookingForUser` fires the `created`
   email; `acceptBooking` / `declineBooking` fetch the booking and fire the
@@ -128,6 +136,7 @@ single verified sender address needed).
 
 **Required setup (one-time, by the user):**
 Add to `Backend/.env` (values from Brevo's SMTP settings tab):
+
 ```
 SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
@@ -136,6 +145,7 @@ SMTP_PASS=<Password / SMTP key from Brevo>
 EMAIL_SENDER_NAME=Madadgar
 EMAIL_SENDER_ADDRESS=your-verified-sender@example.com
 ```
+
 Steps: verify a sender email in Brevo under Senders & Domains → copy the SMTP
 server / Port / Login / Password from the SMTP settings tab into the vars above
 → restart the backend. Until SMTP vars are set, sends are skipped (logged) and
@@ -154,3 +164,255 @@ service details screen.
 
 **Files changed:** `src/screens/ServiceDetails/ServiceDetails.jsx`,
 `src/screens/ServiceDetails/ServiceDetails.styles.js`.
+
+### 8. Follow-up interactions — reminders + completion email (Challenge 2, Point 5)
+
+**Context:** Working through the Challenge 2 gaps step by step. Point 5 of the
+initial requirements ("handle follow-up interactions") was partial — only
+accept/decline status emails existed; no reminders.
+
+**Implemented:**
+
+- Installed `expo-notifications` (SDK 54). Read the v54 docs first (AGENTS.md).
+- `src/services/reminderService.js` (new) — schedules a local appointment
+  reminder via `Notifications.scheduleNotificationAsync` (DATE trigger).
+  Has a `REMINDER_TEST_SECONDS` knob (default 15) so reminders fire seconds
+  from now for demos, vs `REMINDER_LEAD_MINUTES` (60) before the appointment in
+  normal mode. Handles permission + the Android channel.
+- `src/services/bookingService.js` — `saveBookingForUser` schedules the
+  reminder and stores `reminderId` / `reminderAt` on the booking;
+  `markBookingCompleted` now fires a `completed` email via `notifyBookingEvent`.
+- `Backend/routes/email.js` — added the `completed` booking-email event.
+- `app.json` — added the `expo-notifications` plugin.
+
+**Files changed:** `src/services/reminderService.js` (new),
+`src/services/bookingService.js`, `app.json`, `Backend/routes/email.js`.
+
+**Result:** Challenge 2 Initial Requirement #5 → ✅ Done; System Requirement #6
+(Follow-Up Automation) → ✅ Done. `CHALLENGE_2_ANALYSIS.md` updated
+(overall ~70% → ~75%).
+
+**Known minor gap:** the reminder is scheduled on the taker's device;
+cancelling it when the provider declines (a cross-device action) is not wired.
+
+### 9. Reasoning & workflow trace UI (Challenge 2, Point 6)
+
+**Context:** Point 6 of the initial requirements — "show complete reasoning and
+workflow execution." The backend already returned an agent trace (`logs`); the
+frontend discarded it.
+
+**Implemented:**
+
+- `useChat.js` — `buildWorkflowSteps()` authors human-worded steps per turn;
+  each assistant message now carries `steps` (friendly) + `trace` (raw backend
+  logs).
+- `ChatScreen.jsx` — a collapsed "How I worked this out" pill under assistant
+  messages opens a scrollable bottom-sheet `Modal` with two tabs:
+  **Steps** (friendly timeline) and **Agent Log** (raw trace: agent, message,
+  timestamp, JSON data).
+- UX iteration: first tried expand-in-place inline — it overlapped the chips
+  because resizing a FlatList cell is fragile. Switched to the bottom sheet
+  (renders outside the FlatList, scrollable, keeps the chat compact).
+
+**Files changed:** `src/hooks/useChat.js`, `src/screens/Chat/ChatScreen.jsx`,
+`src/screens/Chat/ChatScreen.styles.js`.
+
+**Result:** Challenge 2 Initial Requirement #6 → ✅ Done — Initial Requirements
+now **6 / 6**. `CHALLENGE_2_ANALYSIS.md` updated (overall ~75% → ~78%).
+
+### 8. Provider matching algorithm (rating + proximity)
+
+**Requested:** Rank providers by two weighted criteria — review rating and
+proximity to the user's address — and add realistic lat/lng to the mock data.
+
+**Implementation:**
+
+- `src/services/matchingService.js` (new) — `haversineKm()` great-circle
+  distance, `resolveCoordinates()` (free-text address → lat/lng via an offline
+  Pakistani city/neighbourhood lookup, no geocoding API), and `rankByMatch()`
+  which scores each candidate `0.6 × rating + 0.4 × proximity`
+  (weights in `MATCH_WEIGHTS`). Proximity score is `1 − distance / 25km`,
+  clamped to 0–1; candidates with no coordinates get a neutral 0.5.
+- `src/services/seedService.js` — added realistic `lat`/`lng` to every provider
+  and service (spread across real Karachi / Lahore / Islamabad coordinates).
+- `src/hooks/useChat.js` — `findMatchingServices` now ranks results with
+  `rankByMatch`, using the chat intent's location as the user's address.
+- `src/screens/Chat/ChatScreen.jsx` — suggestion cards now show the distance
+  ("X.X km") so the proximity ranking is visible.
+
+**Action needed:** Tap "Reseed Demo Data" in Profile so the existing
+services/providers in Firestore pick up the new `lat`/`lng` fields.
+
+### 9. ⏳ DEFERRED — Switch the matching system to real data
+
+**Status:** Not started. The user will implement this later and asked to keep
+this reference here. When picking it up, start from this section.
+
+**Goal:** Replace the mocked inputs of the matching algorithm with real data.
+The algorithm itself (`matchingService.js` — `haversineKm`, `rankByMatch`,
+`MATCH_WEIGHTS`) does **not** change. Only three data inputs become real:
+
+1. **Provider / service coordinates** — captured at provider signup instead of
+   hardcoded in `seedService.js`. Options: GPS via `expo-location`
+   ("use my current location"), a `react-native-maps` pin picker, or geocoding
+   the typed address. Store real `lat`/`lng` on the provider/service docs.
+2. **User location** — replace the offline `resolveCoordinates()` lookup table.
+   Options: device GPS via `expo-location` (best, free, no key) for
+   "near me", or geocode a typed address. Keep `resolveCoordinates()` as a
+   fallback when GPS is denied / address unresolved.
+3. **Ratings** — compute `rating` / `reviewCount` from the real `reviews`
+   collection (aggregate on new review via a Cloud Function / backend, or
+   aggregate on read) instead of the static seeded number.
+
+**Cheapest path (no API keys, no cost):** `expo-location` GPS for both provider
+signup and user location + aggregate ratings from existing reviews. A geocoding
+API is only needed if users must type arbitrary addresses.
+
+**Infrastructure if geocoding typed addresses:**
+
+- A geocoding provider — Nominatim/OpenStreetMap (free, no key), or Google /
+  LocationIQ / Geoapify / Mapbox (free tiers, key required).
+- API keys must NOT be in the app — add a backend route
+  `GET /api/geo/geocode?address=...` that calls the provider server-side.
+- `npx expo install expo-location` + location permission strings in `app.json`.
+- At real scale: geohashing (`geofire-common`) for "within X km" Firestore
+  queries — not needed for the hackathon.
+
+**Files that would change:** `ProviderSignupScreen.jsx` (capture coordinates),
+`serviceService.js` `addService` (store lat/lng), `matchingService.js`
+(`resolveCoordinates` → GPS/geocoding, kept as fallback), `useChat.js` + booking
+form (user coords from GPS/geocoded address), `app.json` (permissions); new:
+reviews→rating aggregation, optional `/api/geo/geocode` backend route.
+`seedService.js` stops being the source of coordinates.
+
+### 10. Matching & Ranking + Decision/Recommendation (Challenge 2, System Req #3 & #4)
+
+**Context:** System Requirements #3 (Matching & Ranking) and #4 (Decision &
+Recommendation) — done together since #3 produces the ranking + reasoning that
+#4 presents.
+
+**Implemented:**
+- `matchingService.js` — `rankByMatch` now scores each provider on **three**
+  weighted criteria: rating (0.45) + availability (0.30) + proximity (0.25),
+  via `MATCH_WEIGHTS`. Each result's `_match` carries `availabilityText`, a
+  plain-language `reason`, and the #1 is flagged `recommended`.
+- `seedService.js` — added a simulated `availability` (0–1) to all 14 services.
+- `ChatScreen.jsx` — suggestion cards show rating · availability · distance; the
+  #1 pick gets a gold **"Recommended"** badge.
+- `useChat.js` — `buildWorkflowSteps` adds a "Recommended: …" step with the
+  reason, and notes ranking is by rating, availability & distance.
+
+**Files changed:** `src/services/matchingService.js`,
+`src/services/seedService.js`, `src/screens/Chat/ChatScreen.jsx`,
+`src/screens/Chat/ChatScreen.styles.js`, `src/hooks/useChat.js`.
+
+**Result:** Challenge 2 System Requirements #3 & #4 → ✅ Done — System
+Requirements now **6 / 7** (only #7, the agentic workflow, remains).
+`CHALLENGE_2_ANALYSIS.md` updated (overall ~78% → ~85%).
+
+**Action needed:** Tap "Reseed Demo Data" in Profile so existing services pick
+up the new `availability` field.
+
+### 11. Agentic workflow + Gemini switch (Challenge 2, System Req #7)
+
+**Context:** System Requirement #7 (Agentic Workflow, MANDATORY) — the backend
+had 8 agent files but the `Orchestrator` only ran `IntentAgent`; the other 7
+were dead code. Also switched the LLM to Gemini.
+
+**Implemented (backend):**
+- `agents/intentAgent.js` — replaced the OpenRouter (`callOpenRouter`,
+  `gpt-5.3-chat`) implementation with **Google Gemini** via `@google/genai`
+  (`callGemini`, `gemini-2.5-flash`, JSON mode via `responseMimeType`). Reads
+  `GEMINI_API_KEY` (+ optional `GEMINI_MODEL`).
+- `workflows/orchestrator.js` — on a complete intent, now runs the full
+  **8-agent pipeline**: Intent → Location (geocode) → Provider (discover) →
+  Ranking → Decision → Booking (simulated) → Follow-up → Notification. Every
+  agent logs, so `result.logs` is now a rich multi-agent trace.
+- Approach **B**: the pipeline drives the trace (the in-app Agent Log tab lights
+  up automatically); the client still does the real Firestore booking. The
+  pipeline is best-effort — a failed step never breaks the chat reply.
+
+**Files changed:** `Backend/agents/intentAgent.js`,
+`Backend/workflows/orchestrator.js`.
+
+**Setup:** set `GEMINI_API_KEY` in `Backend/.env` (OpenRouter vars no longer
+used). Restart the backend.
+
+**Result:** Challenge 2 System Requirement #7 → ✅ Done — **System Requirements
+now 7/7; all functional requirements complete.** `CHALLENGE_2_ANALYSIS.md`
+updated (overall ~85% → ~90%). Remaining: README + demo video (non-code).
+
+### 12. README + demo video (Challenge 2 deliverables)
+
+**Context:** The last two deliverables. The user recorded the demo video; the
+root `README.md` was still empty ("# HackathonProject").
+
+**Done:**
+- Wrote the root `README.md` — project overview, architecture diagram,
+  the 8-agent pipeline table, tech stack & APIs, how Google Antigravity is used,
+  project structure, backend/frontend setup + `.env` reference, and
+  assumptions/limitations. (Has a placeholder for the demo video link.)
+- `CHALLENGE_2_ANALYSIS.md` — marked Deliverable #2 (Demo Video) and #4 (README)
+  ✅; deliverables now 4/4; overall ~90% → ~95%.
+
+**Files changed:** `README.md` (root), `CHALLENGE_2_ANALYSIS.md`.
+
+**Action needed:** paste the demo video link into `README.md` (the
+"Demo video" placeholder), and review the "How Google Antigravity is used"
+section so it matches exactly how the team used Antigravity.
+
+**Status:** All Challenge 2 requirements (6/6 + 7/7) and all 4 deliverables are
+complete.
+
+### 13. In-app notifications screen
+
+**Requested:** A notifications screen reachable from the home-screen bell icon —
+lists all notifications with time + a "Clear All" button.
+
+**Implemented:**
+- `src/services/notificationService.js` (new) — a Firestore `notifications`
+  collection: `addNotification`, `getNotificationsForUser` (newest first),
+  `clearNotificationsForUser` (batch delete — powers "Clear All").
+- `src/services/bookingService.js` — booking events now write in-app
+  notifications: `saveBookingForUser` notifies the taker ("Booking request
+  sent") and the provider ("New booking request"); `notifyBookingEvent` notifies
+  the taker on accept / decline / complete. All best-effort.
+- `app/notifications.jsx` (new) — the Notifications screen: list with a
+  per-type icon, title, body, relative time ("2h ago"), pull-to-refresh, empty
+  state, and a header **"Clear All"** action (with a confirm dialog).
+- `TakerHomeScreen.jsx` + `ProviderHomeScreen.jsx` — the header bell's
+  `onBellPress` now routes to `/notifications`.
+
+**Files changed:** `src/services/notificationService.js` (new),
+`app/notifications.jsx` (new), `src/services/bookingService.js`,
+`src/screens/Home/TakerHomeScreen.jsx`,
+`src/screens/Home/ProviderHomeScreen.jsx`.
+
+**Note:** the feed currently covers booking events (created / request /
+accepted / declined / completed). The unread-count bell badge is left as-is.
+
+**Follow-up:** the Notifications screen showed a double header (the expo-router
+native Stack header on top of the custom `Header`). Fixed by adding
+`<Stack.Screen options={{ headerShown: false }} />` to `app/notifications.jsx`.
+
+### 14. Edit Profile — custom toast + live profile refresh
+
+**Reported:** (1) editing the profile showed the **native** alert; (2) profile
+changes didn't reflect on the Profile screen until a manual reload.
+
+**Fixed:**
+- `src/components/Toast/` (new) — a reusable app-styled toast: a brief
+  non-blocking banner that slides in from the top, auto-dismisses, with
+  success / error / info variants.
+- `app/edit-profile.jsx` — replaced all four native `Alert.alert` calls
+  (validation, upload error, save success, save error) with the `Toast`. On a
+  successful save it shows "Profile updated successfully" then returns to the
+  profile.
+- `src/screens/Profile/ProfileScreen.jsx` — changed the profile load from
+  `useEffect` to **`useFocusEffect`**, so the screen re-fetches every time it
+  regains focus. Returning from Edit Profile now shows the updated name / photo /
+  bio immediately.
+
+**Files changed:** `src/components/Toast/Toast.jsx` (new),
+`src/components/Toast/index.js` (new), `app/edit-profile.jsx`,
+`src/screens/Profile/ProfileScreen.jsx`.

@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 
 export const makeStyles = (colors) =>
   StyleSheet.create({
@@ -216,6 +216,24 @@ export const makeStyles = (colors) =>
       fontSize: 12,
       fontWeight: '800',
     },
+    recommendBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+      marginBottom: 3,
+    },
+    recommendBadgeText: {
+      color: '#1a1a1a',
+      fontSize: 9,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
 
     noMatchesWrap: {
       marginTop: 10,
@@ -265,5 +283,173 @@ export const makeStyles = (colors) =>
       color: colors.text,
       fontSize: 11,
       fontWeight: '600',
+    },
+
+    tracePanel: {
+      marginTop: 8,
+      maxWidth: '92%',
+      alignSelf: 'flex-start',
+    },
+    traceToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    traceToggleText: {
+      color: colors.text,
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    traceSteps: {
+      marginTop: 8,
+      padding: 12,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 12,
+    },
+    traceStep: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+    },
+    traceStepIcon: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    traceStepBody: {
+      flex: 1,
+    },
+    traceStepTitle: {
+      color: colors.text,
+      fontSize: 12.5,
+      fontWeight: '600',
+    },
+    traceStepDetail: {
+      color: colors.textSecondary,
+      fontSize: 11,
+      marginTop: 2,
+      lineHeight: 15,
+    },
+    traceBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      justifyContent: 'flex-end',
+    },
+    traceSheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingHorizontal: 16,
+      paddingTop: 14,
+      paddingBottom: 24,
+      maxHeight: '70%',
+    },
+    traceSheetHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 14,
+    },
+    traceSheetTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    traceSheetTitle: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: '700',
+    },
+    traceSheetScroll: {
+      flexShrink: 1,
+    },
+    traceSheetContent: {
+      gap: 14,
+      paddingBottom: 4,
+    },
+    traceTabs: {
+      flexDirection: 'row',
+      gap: 4,
+      padding: 3,
+      marginBottom: 14,
+      borderRadius: 999,
+      backgroundColor: colors.surface,
+    },
+    traceTab: {
+      flex: 1,
+      paddingVertical: 7,
+      borderRadius: 999,
+      alignItems: 'center',
+    },
+    traceTabActive: {
+      backgroundColor: colors.accent,
+    },
+    traceTabText: {
+      color: colors.textSecondary,
+      fontSize: 12.5,
+      fontWeight: '700',
+    },
+    traceTabTextActive: {
+      color: '#1a1a1a',
+    },
+    traceEmpty: {
+      color: colors.textSecondary,
+      fontSize: 13,
+      fontStyle: 'italic',
+      textAlign: 'center',
+      paddingVertical: 16,
+    },
+    logEntry: {
+      padding: 10,
+      borderRadius: 10,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 5,
+    },
+    logEntryHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    logAgent: {
+      color: colors.accent,
+      fontSize: 11,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.4,
+    },
+    logTime: {
+      color: colors.textSecondary,
+      fontSize: 10,
+    },
+    logMessage: {
+      color: colors.text,
+      fontSize: 12.5,
+      lineHeight: 17,
+    },
+    logData: {
+      color: colors.textSecondary,
+      fontSize: 10.5,
+      lineHeight: 14,
+      fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+      backgroundColor: colors.background,
+      borderRadius: 6,
+      padding: 8,
     },
   });

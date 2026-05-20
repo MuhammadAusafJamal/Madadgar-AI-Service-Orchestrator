@@ -1,4 +1,4 @@
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -8,7 +8,9 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -30,6 +32,25 @@ const formatPrice = (svc) => {
 };
 
 const fallbackImage = (id) => `https://picsum.photos/seed/${id || 'svc'}/400/300`;
+
+// Format a backend agent-log entry's timestamp / data for the technical log.
+const formatLogTime = (iso) => {
+  try {
+    return new Date(iso).toLocaleTimeString();
+  } catch (e) {
+    return '';
+  }
+};
+
+const formatLogData = (data) => {
+  if (data == null) return '';
+  if (typeof data === 'string') return data;
+  try {
+    return JSON.stringify(data, null, 2);
+  } catch (e) {
+    return String(data);
+  }
+};
 
 const TYPING_SPEED_MS = 16;
 
@@ -120,6 +141,9 @@ export default function ChatScreen() {
 
   const [draft, setDraft] = useState('');
   const [completedIds, setCompletedIds] = useState(() => new Set());
+  // The trace ({ steps, trace }) shown in the reasoning bottom sheet, or null.
+  const [traceModal, setTraceModal] = useState(null);
+  const [traceMode, setTraceMode] = useState('steps'); // 'steps' | 'log'
   const listRef = useRef(null);
   const animatedIdsRef = useRef(new Set());
 
@@ -174,24 +198,19 @@ export default function ChatScreen() {
         style={styles.suggestionImage}
       />
       <View style={styles.suggestionBody}>
-        <Text style={styles.suggestionTitle} numberOfLines={1}>
+        {service._match?.recommended && (
+          <View style={styles.recommendBadge}>
+            <Ionicons name="sparkles" size={9} color="#1a1a1a" />
+            <Text style={styles.recommendBadgeText}>Recommended</Text>
+          </View>
+        )}
+        <Text style={styles.suggestionTitle} numberOfLines={2}>
           {service.title || 'Service'}
         </Text>
-        <View style={styles.suggestionMetaRow}>
-          <FontAwesome name="star" size={11} color={PALETTE.golden} />
-          <Text style={styles.suggestionMeta}>
-            {service.rating ? service.rating.toFixed(1) : '—'}
-          </Text>
-          {!!service.location && (
-            <>
-              <Text style={styles.suggestionMetaDot}>·</Text>
-              <Ionicons name="location-outline" size={11} color={colors.textSecondary} />
-              <Text style={styles.suggestionMeta} numberOfLines={1}>
-                {service.location}
-              </Text>
-            </>
-          )}
-        </View>
+        <Text style={styles.suggestionMeta} numberOfLines={2}>
+          {service._match?.reason ||
+            (service.rating ? `${service.rating.toFixed(1)}★` : '—')}
+        </Text>
         {!!formatPrice(service) && (
           <Text style={styles.suggestionPrice}>{formatPrice(service)}</Text>
         )}
@@ -205,6 +224,7 @@ export default function ChatScreen() {
   const renderItem = ({ item }) => {
     const isUser = item.role === 'user';
     const hasSuggestions = !isUser && Array.isArray(item.suggestions) && item.suggestions.length > 0;
+    const hasSteps = !isUser && Array.isArray(item.steps) && item.steps.length > 0;
     const intentComplete =
       !isUser && item.intent && item.intent.service && item.intent.location && item.intent.time;
     const shouldAnimate =
@@ -245,6 +265,21 @@ export default function ChatScreen() {
               />
             )}
           </View>
+
+          {extrasReady && hasSteps && (
+            <TouchableOpacity
+              style={[styles.tracePanel, styles.traceToggle]}
+              activeOpacity={0.7}
+              onPress={() => {
+                setTraceMode('steps');
+                setTraceModal({ steps: item.steps, trace: item.trace || [] });
+              }}
+            >
+              <Ionicons name="git-branch-outline" size={13} color={colors.accent} />
+              <Text style={styles.traceToggleText}>How I worked this out</Text>
+              <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
 
           {extrasReady && intentComplete && (
             <FadeIn style={styles.intentChipsRow}>
@@ -431,6 +466,107 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={!!traceModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTraceModal(null)}
+      >
+        <View style={styles.traceBackdrop}>
+          <View style={styles.traceSheet}>
+            <View style={styles.traceSheetHeader}>
+              <View style={styles.traceSheetTitleRow}>
+                <Ionicons name="git-branch-outline" size={16} color={colors.accent} />
+                <Text style={styles.traceSheetTitle}>Reasoning & Workflow</Text>
+              </View>
+              <TouchableOpacity onPress={() => setTraceModal(null)} hitSlop={8}>
+                <Ionicons name="close" size={22} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.traceTabs}>
+              <TouchableOpacity
+                style={[styles.traceTab, traceMode === 'steps' && styles.traceTabActive]}
+                activeOpacity={0.8}
+                onPress={() => setTraceMode('steps')}
+              >
+                <Text
+                  style={[
+                    styles.traceTabText,
+                    traceMode === 'steps' && styles.traceTabTextActive,
+                  ]}
+                >
+                  Steps
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.traceTab, traceMode === 'log' && styles.traceTabActive]}
+                activeOpacity={0.8}
+                onPress={() => setTraceMode('log')}
+              >
+                <Text
+                  style={[
+                    styles.traceTabText,
+                    traceMode === 'log' && styles.traceTabTextActive,
+                  ]}
+                >
+                  Agent Log
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.traceSheetScroll}
+              contentContainerStyle={styles.traceSheetContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {traceMode === 'steps' &&
+                (traceModal?.steps || []).map((step, idx) => (
+                  <View key={idx} style={styles.traceStep}>
+                    <View style={styles.traceStepIcon}>
+                      <Ionicons name={step.icon} size={14} color={colors.accent} />
+                    </View>
+                    <View style={styles.traceStepBody}>
+                      <Text style={styles.traceStepTitle}>{step.title}</Text>
+                      {!!step.detail && (
+                        <Text style={styles.traceStepDetail}>{step.detail}</Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
+
+              {traceMode === 'log' &&
+                (!traceModal?.trace || traceModal.trace.length === 0 ? (
+                  <Text style={styles.traceEmpty}>
+                    No technical log was captured for this turn.
+                  </Text>
+                ) : (
+                  traceModal.trace.map((entry, idx) => (
+                    <View key={idx} style={styles.logEntry}>
+                      <View style={styles.logEntryHead}>
+                        <Text style={styles.logAgent}>
+                          {entry.agent || 'System'}
+                        </Text>
+                        {!!entry.timestamp && (
+                          <Text style={styles.logTime}>
+                            {formatLogTime(entry.timestamp)}
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={styles.logMessage}>{entry.message}</Text>
+                      {entry.data != null && (
+                        <Text style={styles.logData}>
+                          {formatLogData(entry.data)}
+                        </Text>
+                      )}
+                    </View>
+                  ))
+                ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

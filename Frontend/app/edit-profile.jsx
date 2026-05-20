@@ -4,7 +4,6 @@ import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import Toast from '@/src/components/Toast';
 import { CATEGORIES } from '@/src/constants/categories';
 import { useAuth } from '@/src/context/AuthContext';
 import {
@@ -38,6 +38,7 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -88,7 +89,7 @@ export default function EditProfileScreen() {
       const url = await uploadFile(result.assets[0].uri, 'profile_pics');
       setProfilePic(url);
     } catch (e) {
-      Alert.alert('Upload failed', e?.message || 'Could not upload image.');
+      setToast({ message: 'Could not upload image. Try again.', type: 'error' });
     } finally {
       setUploading(false);
     }
@@ -97,7 +98,7 @@ export default function EditProfileScreen() {
   const handleSave = async () => {
     if (saving) return;
     if (!fullName.trim()) {
-      Alert.alert('Validation', 'Full name is required.');
+      setToast({ message: 'Full name is required.', type: 'error' });
       return;
     }
     setSaving(true);
@@ -120,12 +121,11 @@ export default function EditProfileScreen() {
     }
     try {
       await updateUserProfile(user.uid, role, updates);
-      Alert.alert('Saved', 'Profile updated.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      setToast({ message: 'Profile updated successfully', type: 'success' });
+      // Brief pause so the toast is seen, then return to the profile.
+      setTimeout(() => router.back(), 1000);
     } catch (e) {
-      Alert.alert('Save failed', e?.message || 'Could not save profile.');
-    } finally {
+      setToast({ message: 'Could not save profile. Try again.', type: 'error' });
       setSaving(false);
     }
   };
@@ -265,6 +265,12 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Toast
+        visible={!!toast}
+        message={toast?.message}
+        type={toast?.type}
+        onHide={() => setToast(null)}
+      />
     </SafeAreaView>
   );
 }

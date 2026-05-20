@@ -111,6 +111,7 @@ export default function ProviderHomeScreen() {
             username: firstName,
             unreadNotificationCount: pending.length,
             onAvatarPress: () => router.push('/(tabs)/profile'),
+            onBellPress: () => router.push('/notifications'),
           }}
         />
 
