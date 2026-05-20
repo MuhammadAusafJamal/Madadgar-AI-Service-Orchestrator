@@ -126,10 +126,15 @@ function buildWorkflowSteps({
       suggestions.length === 1 ? 'provider' : 'providers'
     }`,
     detail: suggestions.length
-      ? 'Ranked by rating'
+      ? 'Ranked by rating, availability & distance'
       : 'No catalog match — suggested alternatives',
   });
   if (suggestions.length > 0) {
+    steps.push({
+      icon: 'star-outline',
+      title: `Recommended: ${suggestions[0].title || 'top match'}`,
+      detail: suggestions[0]._match?.reason || null,
+    });
     steps.push({
       icon: 'checkmark-circle-outline',
       title: 'Ready to book — pick a provider below',

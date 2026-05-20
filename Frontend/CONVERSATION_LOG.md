@@ -280,3 +280,31 @@ API is only needed if users must type arbitrary addresses.
 form (user coords from GPS/geocoded address), `app.json` (permissions); new:
 reviews→rating aggregation, optional `/api/geo/geocode` backend route.
 `seedService.js` stops being the source of coordinates.
+
+### 10. Matching & Ranking + Decision/Recommendation (Challenge 2, System Req #3 & #4)
+
+**Context:** System Requirements #3 (Matching & Ranking) and #4 (Decision &
+Recommendation) — done together since #3 produces the ranking + reasoning that
+#4 presents.
+
+**Implemented:**
+- `matchingService.js` — `rankByMatch` now scores each provider on **three**
+  weighted criteria: rating (0.45) + availability (0.30) + proximity (0.25),
+  via `MATCH_WEIGHTS`. Each result's `_match` carries `availabilityText`, a
+  plain-language `reason`, and the #1 is flagged `recommended`.
+- `seedService.js` — added a simulated `availability` (0–1) to all 14 services.
+- `ChatScreen.jsx` — suggestion cards show rating · availability · distance; the
+  #1 pick gets a gold **"Recommended"** badge.
+- `useChat.js` — `buildWorkflowSteps` adds a "Recommended: …" step with the
+  reason, and notes ranking is by rating, availability & distance.
+
+**Files changed:** `src/services/matchingService.js`,
+`src/services/seedService.js`, `src/screens/Chat/ChatScreen.jsx`,
+`src/screens/Chat/ChatScreen.styles.js`, `src/hooks/useChat.js`.
+
+**Result:** Challenge 2 System Requirements #3 & #4 → ✅ Done — System
+Requirements now **6 / 7** (only #7, the agentic workflow, remains).
+`CHALLENGE_2_ANALYSIS.md` updated (overall ~78% → ~85%).
+
+**Action needed:** Tap "Reseed Demo Data" in Profile so existing services pick
+up the new `availability` field.

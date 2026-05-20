@@ -1,14 +1,17 @@
-// Provider/service matching.
+// Provider/service matching — Challenge 2 #3 (Matching & Ranking) and
+// #4 (Decision & Recommendation).
 //
-// Ranks candidates by a weighted blend of two criteria:
+// Ranks candidates by a weighted blend of three criteria:
 //   1. Review rating  — higher average rating boosts rank.
-//   2. Proximity      — shorter distance from the user's address boosts rank.
+//   2. Availability   — more available providers boost rank.
+//   3. Proximity      — shorter distance from the user's address boosts rank.
 //
-// Entry point: rankByMatch(items, userCoords).
+// rankByMatch() also flags the top result (`_match.recommended`) and attaches a
+// plain-language reason. Entry point: rankByMatch(items, userCoords).
 
 // --- Weights ---------------------------------------------------------------
-// Tune freely; the two should sum to 1.
-export const MATCH_WEIGHTS = { rating: 0.6, proximity: 0.4 };
+// Tune freely; the three should sum to 1.
+export const MATCH_WEIGHTS = { rating: 0.45, availability: 0.3, proximity: 0.25 };
 
 const RATING_SCALE = 5; // ratings are on a 0–5 scale
 // Distance (km) at which the proximity score decays to 0. Anything farther
@@ -98,11 +101,36 @@ export function haversineKm(a, b) {
 // --- Scoring ---------------------------------------------------------------
 const clamp01 = (n) => Math.min(1, Math.max(0, n));
 
+// Turn an availability score (0–1) into a short human label.
+export function availabilityLabel(score) {
+  if (score >= 0.8) return 'Available today';
+  if (score >= 0.5) return 'Available this week';
+  return 'Limited availability';
+}
+
+// Plain-language "why" line — Challenge 2 #3 "clear reasoning for selection"
+// and #4 "explain the decision in simple terms".
+function buildReason(rating, availabilityText, distanceKm) {
+  const parts = [];
+  if (rating > 0) parts.push(`${rating.toFixed(1)}★`);
+  parts.push(availabilityText);
+  if (typeof distanceKm === 'number') {
+    parts.push(`${distanceKm.toFixed(1)} km`);
+  }
+  return parts.join(' · ');
+}
+
 // Score one candidate (a service or provider) on each criterion (0..1) and
-// blend them into a single weighted score. Returns the breakdown so the UI can
-// surface things like "3.2 km away".
+// blend them into a single weighted score. Returns the breakdown plus a
+// human-readable availability label and reason so the UI can explain the pick.
 function scoreCandidate(item, userCoords, weights) {
-  const ratingScore = clamp01((Number(item.rating) || 0) / RATING_SCALE);
+  const rating = Number(item.rating) || 0;
+  const ratingScore = clamp01(rating / RATING_SCALE);
+
+  const availabilityScore = clamp01(
+    typeof item.availability === 'number' ? item.availability : 0.5,
+  );
+  const availabilityText = availabilityLabel(availabilityScore);
 
   let distanceKm = null;
   let proximityScore = 0.5; // neutral when a distance can't be computed
@@ -114,18 +142,32 @@ function scoreCandidate(item, userCoords, weights) {
   }
 
   const score =
-    weights.rating * ratingScore + weights.proximity * proximityScore;
-  return { score, ratingScore, proximityScore, distanceKm };
+    weights.rating * ratingScore +
+    weights.availability * availabilityScore +
+    weights.proximity * proximityScore;
+
+  return {
+    score,
+    ratingScore,
+    availabilityScore,
+    availabilityText,
+    proximityScore,
+    distanceKm,
+    reason: buildReason(rating, availabilityText, distanceKm),
+  };
 }
 
 // Rank items (services or providers) best-first by the weighted match score.
-// `userCoords` may be null — ranking then falls back to rating only. Each
-// returned item carries a `_match` object with the score breakdown.
+// `userCoords` may be null — ranking then leans on rating + availability. The
+// #1 result is flagged `_match.recommended`; each item carries a `_match`
+// object with the full score breakdown and a plain-language reason.
 export function rankByMatch(items = [], userCoords = null, weights = MATCH_WEIGHTS) {
-  return items
+  const ranked = items
     .map((item) => ({
       ...item,
       _match: scoreCandidate(item, userCoords, weights),
     }))
     .sort((a, b) => b._match.score - a._match.score);
+  if (ranked.length > 0) ranked[0]._match.recommended = true;
+  return ranked;
 }

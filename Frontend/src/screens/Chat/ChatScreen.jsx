@@ -1,4 +1,4 @@
-import { FontAwesome, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -198,33 +198,19 @@ export default function ChatScreen() {
         style={styles.suggestionImage}
       />
       <View style={styles.suggestionBody}>
-        <Text style={styles.suggestionTitle} numberOfLines={1}>
+        {service._match?.recommended && (
+          <View style={styles.recommendBadge}>
+            <Ionicons name="sparkles" size={9} color="#1a1a1a" />
+            <Text style={styles.recommendBadgeText}>Recommended</Text>
+          </View>
+        )}
+        <Text style={styles.suggestionTitle} numberOfLines={2}>
           {service.title || 'Service'}
         </Text>
-        <View style={styles.suggestionMetaRow}>
-          <FontAwesome name="star" size={11} color={PALETTE.golden} />
-          <Text style={styles.suggestionMeta}>
-            {service.rating ? service.rating.toFixed(1) : '—'}
-          </Text>
-          {!!service.location && (
-            <>
-              <Text style={styles.suggestionMetaDot}>·</Text>
-              <Ionicons name="location-outline" size={11} color={colors.textSecondary} />
-              <Text style={styles.suggestionMeta} numberOfLines={1}>
-                {service.location}
-              </Text>
-            </>
-          )}
-          {typeof service._match?.distanceKm === 'number' && (
-            <>
-              <Text style={styles.suggestionMetaDot}>·</Text>
-              <Ionicons name="navigate-outline" size={11} color={colors.textSecondary} />
-              <Text style={styles.suggestionMeta}>
-                {service._match.distanceKm.toFixed(1)} km
-              </Text>
-            </>
-          )}
-        </View>
+        <Text style={styles.suggestionMeta} numberOfLines={2}>
+          {service._match?.reason ||
+            (service.rating ? `${service.rating.toFixed(1)}★` : '—')}
+        </Text>
         {!!formatPrice(service) && (
           <Text style={styles.suggestionPrice}>{formatPrice(service)}</Text>
         )}

@@ -216,6 +216,24 @@ export const makeStyles = (colors) =>
       fontSize: 12,
       fontWeight: '800',
     },
+    recommendBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+      marginBottom: 3,
+    },
+    recommendBadgeText: {
+      color: '#1a1a1a',
+      fontSize: 9,
+      fontWeight: '800',
+      textTransform: 'uppercase',
+      letterSpacing: 0.3,
+    },
 
     noMatchesWrap: {
       marginTop: 10,

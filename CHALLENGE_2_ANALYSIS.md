@@ -12,19 +12,19 @@
 | View | Strict (fully done) | With partial credit |
 |---|---|---|
 | **Initial Requirements** (Problem Statement, 6) | 6 / 6 — **100%** | **~100%** |
-| **System Requirements** (detailed, 7) | 4 / 7 — **57%** | **~84%** |
+| **System Requirements** (detailed, 7) | 6 / 7 — **86%** | **~94%** |
 | **Deliverables** (4) | 1 / 4 | **~45%** |
-| **Overall vs Challenge 2** | — | **~78%** |
+| **Overall vs Challenge 2** | — | **~85%** |
 
 **Summary:** The core user product works end-to-end — natural-language chat →
-intent extraction → provider matching → simulated booking → confirmation email →
+intent extraction → weighted provider matching (rating + availability +
+distance) with a recommended pick → simulated booking → confirmation email →
 follow-up (reminders, status emails, completion), with the assistant's reasoning
-and a raw agent log now visible in-app. The **main gap** is the multi-agent
+and a raw agent log visible in-app. The **one remaining gap** is the multi-agent
 workflow itself: 7 of 8 backend agents are unused code, so the live pipeline is
-thin. The ranking also misses the "availability" criterion, and the README is
-still missing. Because "Agentic Workflow" is **mandatory** and Antigravity +
-Agentic Reasoning are **45% of the score**, wiring the agent pipeline is the
-highest-priority remaining work.
+thin. The README is also still missing. Because "Agentic Workflow" is
+**mandatory** and Antigravity + Agentic Reasoning are **45% of the score**,
+wiring the agent pipeline is the highest-priority remaining work.
 
 ---
 
@@ -51,13 +51,13 @@ highest-priority remaining work.
 |---|---|---|---|
 | 1 | **Intent Understanding** — NL input; Urdu / Roman Urdu / English; extract service, location, time | ✅ Done (100%) | `intentAgent.js` detects `language` (english/roman_urdu/urdu), extracts service/location/time/intentType, replies in the same language, has a keyword guardrail + heuristic fallback. Strong. |
 | 2 | **Provider Discovery** — mock dataset or Maps/Places; nearby + category match | ✅ Done (100%) | Firestore mock catalog via `getServices`; category match via `inferCategoryIds`. (Backend `LocationAgent` even has real Nominatim geocoding — but it's unused, see #7.) |
-| 3 | **Matching & Ranking** — rank by distance, availability, rating; clear reasoning | ⚠️ Partial (~70%) | `matchingService.js` `rankByMatch` ranks by **rating + distance** only — **availability is not a factor** in the live path. No natural-language "why this provider" reasoning shown. (The unused backend `RankingAgent` *does* include availability + response speed.) |
-| 4 | **Decision & Recommendation** — best provider or top options; explain decision simply | ⚠️ Partial (~65%) | Top-3 options are shown ✅. "Explain the decision in simple terms" is weak — cards show rating + km, but no plain-language recommendation reasoning. |
+| 3 | **Matching & Ranking** — rank by distance, availability, rating; clear reasoning | ✅ Done | `matchingService.js` `rankByMatch` scores each provider on **rating + availability + distance** (weights in `MATCH_WEIGHTS`) and attaches a plain-language `reason` ("4.9★ rating · Available today · 3.2 km away"). All 14 seed services carry a simulated `availability`. |
+| 4 | **Decision & Recommendation** — best provider or top options; explain decision simply | ✅ Done | Top-3 options shown with the #1 flagged `_match.recommended` and a gold **"Recommended"** badge. Each card shows the rating · availability · distance factors; the reasoning panel adds a "Recommended: …" step explaining the pick. |
 | 5 | **Action Simulation (CRITICAL)** — booking confirmation, provider assignment, scheduling | ✅ Done (100%) | `BookingConfirmationFlow` simulates the booking, writes to Firestore `bookings`, shows a confirmation screen, and sends a real confirmation email. End-to-end and solid. |
 | 6 | **Follow-Up Automation** — reminders, status updates, completion confirmation | ✅ Done (~95%) | Reminders ✅ (`reminderService.js` schedules a local `expo-notifications` reminder before the appointment), status updates ✅ (accept/decline emails), completion confirmation ✅ (`completed` email + `markBookingCompleted`). Minor: cross-device reminder cancellation on decline not wired. |
 | 7 | **Agentic Workflow (MANDATORY)** — multiple agents / structured pipeline; planning→decision→action→follow-up; traceable logs | ⚠️ Partial (~55%) | **Biggest gap.** 8 agent files exist, but the live `Orchestrator` only runs `IntentAgent`. `Provider/Location/Ranking/Decision/Booking/Followup/Notification` agents are written **but never imported or executed** — effectively dead code. Traceable logs are now ✅ visible in-app (Agent Log tab), but the trace stays thin because the pipeline only runs IntentAgent. |
 
-**Score: 4 / 7 fully done (57%) — ~84% with partial credit.**
+**Score: 6 / 7 fully done (86%) — ~94% with partial credit.**
 
 ---
 
@@ -94,7 +94,7 @@ its use is a *process* requirement. Notes:
 |---|---|---|
 | Use of Google Antigravity | 25% | At risk — must be evidenced (traces, README) |
 | Agentic Reasoning & Workflow | 20% | Weak — agents not wired into one pipeline |
-| Matching Quality & Decision Logic | 20% | Good base — add availability + reasoning text |
+| Matching Quality & Decision Logic | 20% | Strong ✅ — 3-factor weighted ranking + recommended pick + reasoning |
 | Action Simulation & Execution | 15% | Strong ✅ |
 | Technical Implementation | 10% | Decent — but dead/unused backend agents hurt |
 | Innovation & UX | 10% | Strong ✅ — polished app |
@@ -113,8 +113,9 @@ its use is a *process* requirement. Notes:
 3. ~~Add reminders (follow-up automation).~~ ✅ **Done (2026-05-21)** —
    `reminderService.js` schedules a local `expo-notifications` reminder before
    the appointment; completion-confirmation email added.
-4. **Add `availability` to the ranking** and show a one-line recommendation
-   reason ("Closest available provider with a high rating").
+4. ~~Add `availability` to the ranking + a recommendation reason.~~ ✅ **Done
+   (2026-05-21)** — `rankByMatch` now scores rating + availability + distance,
+   flags the top pick, and attaches a plain-language reason.
 5. **Write the README** — architecture, Antigravity usage, tools/APIs,
    assumptions.
 6. **Record the demo video** covering the full input→follow-up flow.
@@ -124,12 +125,12 @@ its use is a *process* requirement. Notes:
 ## 7. Scoring summary
 
 - **Initial Requirements:** 6 / 6 done — **100%**
-- **System Requirements:** 4 / 7 done — **57% strict, ~84% weighted**
+- **System Requirements:** 6 / 7 done — **86% strict, ~94% weighted**
 - **Deliverables:** 1 / 4 fully done — **~45%**
-- **Overall completion vs Challenge 2: ~78%**
+- **Overall completion vs Challenge 2: ~85%**
 
-The product experience is strong; the **agentic-workflow wiring** (and the
-README) are what stand between ~78% and a competitive submission.
+Only one requirement is left: the **agentic-workflow wiring** (#7) — plus the
+README. Those are what stand between ~85% and a competitive submission.
 
 ---
 
@@ -149,3 +150,12 @@ README) are what stand between ~78% and a competitive submission.
   trace. The chat shows a collapsed "How I worked this out" pill that opens a
   scrollable bottom sheet with two tabs: **Steps** (friendly) and **Agent Log**
   (raw trace — agent, message, timestamp, data). Initial Requirements now 6/6.
+
+- **2026-05-21 — System Requirements #3 (Matching & Ranking) + #4 (Decision &
+  Recommendation) → ✅ Done.** `rankByMatch` in `matchingService.js` now scores
+  every provider on three weighted criteria — rating (0.45) + availability
+  (0.30) + proximity (0.25) — and attaches a plain-language `reason`. Added a
+  simulated `availability` field to all 14 seed services. The chat suggestion
+  cards show rating · availability · distance, and the #1 pick gets a gold
+  **"Recommended"** badge; the reasoning panel gains a "Recommended: …" step.
+  System Requirements now 6/7 (only #7, the agentic workflow, remains).
