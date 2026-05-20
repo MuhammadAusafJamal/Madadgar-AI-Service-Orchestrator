@@ -183,3 +183,27 @@ accept/decline status emails existed; no reminders.
 
 **Known minor gap:** the reminder is scheduled on the taker's device;
 cancelling it when the provider declines (a cross-device action) is not wired.
+
+### 9. Reasoning & workflow trace UI (Challenge 2, Point 6)
+
+**Context:** Point 6 of the initial requirements — "show complete reasoning and
+workflow execution." The backend already returned an agent trace (`logs`); the
+frontend discarded it.
+
+**Implemented:**
+- `useChat.js` — `buildWorkflowSteps()` authors human-worded steps per turn;
+  each assistant message now carries `steps` (friendly) + `trace` (raw backend
+  logs).
+- `ChatScreen.jsx` — a collapsed "How I worked this out" pill under assistant
+  messages opens a scrollable bottom-sheet `Modal` with two tabs:
+  **Steps** (friendly timeline) and **Agent Log** (raw trace: agent, message,
+  timestamp, JSON data).
+- UX iteration: first tried expand-in-place inline — it overlapped the chips
+  because resizing a FlatList cell is fragile. Switched to the bottom sheet
+  (renders outside the FlatList, scrollable, keeps the chat compact).
+
+**Files changed:** `src/hooks/useChat.js`, `src/screens/Chat/ChatScreen.jsx`,
+`src/screens/Chat/ChatScreen.styles.js`.
+
+**Result:** Challenge 2 Initial Requirement #6 → ✅ Done — Initial Requirements
+now **6 / 6**. `CHALLENGE_2_ANALYSIS.md` updated (overall ~75% → ~78%).

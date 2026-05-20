@@ -84,6 +84,68 @@ async function findMatchingServices(intent) {
   }
 }
 
+// Author the human-worded "How I worked this out" steps for an assistant turn
+// (Challenge 2, point 6 — "show complete reasoning and workflow execution").
+// Returns [] for greetings / smalltalk where a workflow trace is just noise.
+function buildWorkflowSteps({
+  intent,
+  hasCompleteIntent,
+  needsTimePick,
+  needsDatePick,
+  suggestions,
+  greeted,
+}) {
+  if (greeted) return [];
+  if (!intent || (!intent.service && !hasCompleteIntent)) return [];
+
+  const steps = [
+    {
+      icon: 'sparkles-outline',
+      title: 'Understood your request',
+      detail:
+        [intent.service, intent.location, intent.time]
+          .filter(Boolean)
+          .join(' · ') || null,
+    },
+  ];
+
+  if (!hasCompleteIntent) {
+    steps.push({
+      icon: 'help-circle-outline',
+      title: 'Asked for the missing details',
+      detail: 'Service, location and time are all needed to continue',
+    });
+    return steps;
+  }
+
+  if (needsTimePick || needsDatePick) {
+    steps.push({
+      icon: 'time-outline',
+      title: 'Checked the requested time against booking hours',
+      detail: 'Not bookable as-is — offered valid slots to pick from',
+    });
+    return steps;
+  }
+
+  steps.push({ icon: 'search-outline', title: 'Searched the provider catalog' });
+  steps.push({
+    icon: 'podium-outline',
+    title: `Found ${suggestions.length} matching ${
+      suggestions.length === 1 ? 'provider' : 'providers'
+    }`,
+    detail: suggestions.length
+      ? 'Ranked by rating'
+      : 'No catalog match — suggested alternatives',
+  });
+  if (suggestions.length > 0) {
+    steps.push({
+      icon: 'checkmark-circle-outline',
+      title: 'Ready to book — pick a provider below',
+    });
+  }
+  return steps;
+}
+
 export function useChat() {
   const { user } = useAuth();
   const [messages, setMessages] = useState([]);
@@ -205,6 +267,17 @@ export function useChat() {
           finalText = `Hi! I'm Madadgar — your AI service assistant. Tell me what you need and I'll find and book a trusted provider for you. We provide:`;
         }
 
+        // Author the human-worded workflow steps for the reasoning panel
+        // (Challenge 2, point 6) and keep the raw backend agent trace too.
+        const workflowSteps = buildWorkflowSteps({
+          intent,
+          hasCompleteIntent,
+          needsTimePick,
+          needsDatePick,
+          suggestions,
+          greeted,
+        });
+
         setMessages((prev) => [
           ...prev,
           {
@@ -213,6 +286,8 @@ export function useChat() {
             text: finalText,
             intent,
             suggestions,
+            steps: workflowSteps,
+            trace: Array.isArray(result?.logs) ? result.logs : [],
             needsTimePick,
             needsDatePick,
             availableTimeSlots: needsTimePick ? TIME_SLOTS : null,

@@ -11,19 +11,20 @@
 
 | View | Strict (fully done) | With partial credit |
 |---|---|---|
-| **Initial Requirements** (Problem Statement, 6) | 5 / 6 — **83%** | **~92%** |
-| **System Requirements** (detailed, 7) | 4 / 7 — **57%** | **~83%** |
-| **Deliverables** (4) | 1 / 4 | **~40%** |
-| **Overall vs Challenge 2** | — | **~75%** |
+| **Initial Requirements** (Problem Statement, 6) | 6 / 6 — **100%** | **~100%** |
+| **System Requirements** (detailed, 7) | 4 / 7 — **57%** | **~84%** |
+| **Deliverables** (4) | 1 / 4 | **~45%** |
+| **Overall vs Challenge 2** | — | **~78%** |
 
 **Summary:** The core user product works end-to-end — natural-language chat →
 intent extraction → provider matching → simulated booking → confirmation email →
-follow-up (appointment reminders, status emails, completion confirmation). The
-**main gaps** are: the multi-agent workflow is not actually wired up (7 of 8
-backend agents are unused code), the ranking misses the "availability"
-criterion, and the README / agent-trace deliverables are missing. Because
-"Agentic Workflow" is **mandatory** and Antigravity + Agentic Reasoning are
-**45% of the score**, the agentic gap is the highest-priority risk.
+follow-up (reminders, status emails, completion), with the assistant's reasoning
+and a raw agent log now visible in-app. The **main gap** is the multi-agent
+workflow itself: 7 of 8 backend agents are unused code, so the live pipeline is
+thin. The ranking also misses the "availability" criterion, and the README is
+still missing. Because "Agentic Workflow" is **mandatory** and Antigravity +
+Agentic Reasoning are **45% of the score**, wiring the agent pipeline is the
+highest-priority remaining work.
 
 ---
 
@@ -38,9 +39,9 @@ criterion, and the README / agent-trace deliverables are missing. Because
 | 3 | Select or recommend the best provider | ✅ Done | Top-3 ranked suggestions shown in chat |
 | 4 | Simulate booking and confirmation | ✅ Done | `BookingConfirmationFlow.jsx` → Firestore write + confirmation email |
 | 5 | Handle follow-up interactions | ✅ Done | Status emails + `expo-notifications` appointment reminders + completion-confirmation email |
-| 6 | Show complete reasoning and workflow execution | ⚠️ Partial | Backend logger builds a trace, but it's thin and **not shown in the app** |
+| 6 | Show complete reasoning and workflow execution | ✅ Done | In-chat "How I worked this out" sheet — friendly **Steps** + a raw **Agent Log** tab (backend trace with timestamps & data) |
 
-**Score: 5 / 6 fully done (83%) — ~92% with partial credit.**
+**Score: 6 / 6 fully done (100%).**
 
 ---
 
@@ -54,9 +55,9 @@ criterion, and the README / agent-trace deliverables are missing. Because
 | 4 | **Decision & Recommendation** — best provider or top options; explain decision simply | ⚠️ Partial (~65%) | Top-3 options are shown ✅. "Explain the decision in simple terms" is weak — cards show rating + km, but no plain-language recommendation reasoning. |
 | 5 | **Action Simulation (CRITICAL)** — booking confirmation, provider assignment, scheduling | ✅ Done (100%) | `BookingConfirmationFlow` simulates the booking, writes to Firestore `bookings`, shows a confirmation screen, and sends a real confirmation email. End-to-end and solid. |
 | 6 | **Follow-Up Automation** — reminders, status updates, completion confirmation | ✅ Done (~95%) | Reminders ✅ (`reminderService.js` schedules a local `expo-notifications` reminder before the appointment), status updates ✅ (accept/decline emails), completion confirmation ✅ (`completed` email + `markBookingCompleted`). Minor: cross-device reminder cancellation on decline not wired. |
-| 7 | **Agentic Workflow (MANDATORY)** — multiple agents / structured pipeline; planning→decision→action→follow-up; traceable logs | ⚠️ Partial (~45%) | **Biggest gap.** 8 agent files exist, but the live `Orchestrator` only runs `IntentAgent`. `Provider/Location/Ranking/Decision/Booking/Followup/Notification` agents are written **but never imported or executed** — effectively dead code. The real pipeline is split: backend does intent only; frontend does matching/booking/follow-up. The trace logger only captures Intent + Orchestrator steps. |
+| 7 | **Agentic Workflow (MANDATORY)** — multiple agents / structured pipeline; planning→decision→action→follow-up; traceable logs | ⚠️ Partial (~55%) | **Biggest gap.** 8 agent files exist, but the live `Orchestrator` only runs `IntentAgent`. `Provider/Location/Ranking/Decision/Booking/Followup/Notification` agents are written **but never imported or executed** — effectively dead code. Traceable logs are now ✅ visible in-app (Agent Log tab), but the trace stays thin because the pipeline only runs IntentAgent. |
 
-**Score: 4 / 7 fully done (57%) — ~83% with partial credit.**
+**Score: 4 / 7 fully done (57%) — ~84% with partial credit.**
 
 ---
 
@@ -82,7 +83,7 @@ its use is a *process* requirement. Notes:
 |---|---|---|
 | 1 | Working Prototype — Mobile App (MUST) | ✅ Done — substantial Expo/React Native app. Web App (optional) — not present (fine). |
 | 2 | Demo Video (3–5 min) | ❓ Not in repo — produce it; must show input → understanding → matching → booking → follow-up. |
-| 3 | Agent Trace / Logs | ⚠️ Partial — backend `logger` returns `logs`, but the trace is thin and the app never displays it. `TRACE_AND_HISTORY.html` may cover this. |
+| 3 | Agent Trace / Logs | ⚠️ Partial — the agent log is now shown in-app (Agent Log tab in the chat reasoning sheet); still thin because only IntentAgent runs live. `TRACE_AND_HISTORY.html` may also cover this. |
 | 4 | Documentation (README) | ❌ Missing — root `README.md` is just "# HackathonProject". Needs architecture, Antigravity usage, APIs/tools, assumptions. |
 
 ---
@@ -106,9 +107,9 @@ its use is a *process* requirement. Notes:
    `Orchestrator` actually call the chain — `Intent → Provider → Location →
    Ranking → Decision → Booking → Followup → Notification` — so the trace shows
    a real multi-agent flow. Today only `IntentAgent` runs.
-2. **Surface the agent trace in the app.** `useChat` already receives
-   `result.logs` from the backend but ignores it — show it as a "reasoning /
-   workflow" view so the judge can see traceable decision-making.
+2. ~~Surface the agent trace in the app.~~ ✅ **Done (2026-05-21)** — the chat's
+   "How I worked this out" sheet shows friendly Steps + a raw Agent Log tab
+   (agent, message, timestamp, data).
 3. ~~Add reminders (follow-up automation).~~ ✅ **Done (2026-05-21)** —
    `reminderService.js` schedules a local `expo-notifications` reminder before
    the appointment; completion-confirmation email added.
@@ -122,14 +123,13 @@ its use is a *process* requirement. Notes:
 
 ## 7. Scoring summary
 
-- **Initial Requirements:** 5 / 6 done — **83% strict, ~92% weighted**
-- **System Requirements:** 4 / 7 done — **57% strict, ~83% weighted**
-- **Deliverables:** 1 / 4 fully done — **~40%**
-- **Overall completion vs Challenge 2: ~75%**
+- **Initial Requirements:** 6 / 6 done — **100%**
+- **System Requirements:** 4 / 7 done — **57% strict, ~84% weighted**
+- **Deliverables:** 1 / 4 fully done — **~45%**
+- **Overall completion vs Challenge 2: ~78%**
 
-The product experience is strong; the **agentic-workflow wiring and the
-documentation/trace deliverables** are what stand between ~75% and a
-competitive submission.
+The product experience is strong; the **agentic-workflow wiring** (and the
+README) are what stand between ~78% and a competitive submission.
 
 ---
 
@@ -142,3 +142,10 @@ competitive submission.
   reminder scheduling into `saveBookingForUser`, and added a `completed`
   confirmation email (`markBookingCompleted` → `Backend/routes/email.js`).
   System Requirement #6 (Follow-Up Automation) also moved to ✅.
+
+- **2026-05-21 — Initial Requirement #6 (Show complete reasoning & workflow
+  execution) → ✅ Done.** Each assistant turn now authors human-worded workflow
+  steps (`buildWorkflowSteps` in `useChat.js`) and keeps the raw backend agent
+  trace. The chat shows a collapsed "How I worked this out" pill that opens a
+  scrollable bottom sheet with two tabs: **Steps** (friendly) and **Agent Log**
+  (raw trace — agent, message, timestamp, data). Initial Requirements now 6/6.
