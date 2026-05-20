@@ -154,3 +154,32 @@ service details screen.
 
 **Files changed:** `src/screens/ServiceDetails/ServiceDetails.jsx`,
 `src/screens/ServiceDetails/ServiceDetails.styles.js`.
+
+### 8. Follow-up interactions — reminders + completion email (Challenge 2, Point 5)
+
+**Context:** Working through the Challenge 2 gaps step by step. Point 5 of the
+initial requirements ("handle follow-up interactions") was partial — only
+accept/decline status emails existed; no reminders.
+
+**Implemented:**
+- Installed `expo-notifications` (SDK 54). Read the v54 docs first (AGENTS.md).
+- `src/services/reminderService.js` (new) — schedules a local appointment
+  reminder via `Notifications.scheduleNotificationAsync` (DATE trigger).
+  Has a `REMINDER_TEST_SECONDS` knob (default 15) so reminders fire seconds
+  from now for demos, vs `REMINDER_LEAD_MINUTES` (60) before the appointment in
+  normal mode. Handles permission + the Android channel.
+- `src/services/bookingService.js` — `saveBookingForUser` schedules the
+  reminder and stores `reminderId` / `reminderAt` on the booking;
+  `markBookingCompleted` now fires a `completed` email via `notifyBookingEvent`.
+- `Backend/routes/email.js` — added the `completed` booking-email event.
+- `app.json` — added the `expo-notifications` plugin.
+
+**Files changed:** `src/services/reminderService.js` (new),
+`src/services/bookingService.js`, `app.json`, `Backend/routes/email.js`.
+
+**Result:** Challenge 2 Initial Requirement #5 → ✅ Done; System Requirement #6
+(Follow-Up Automation) → ✅ Done. `CHALLENGE_2_ANALYSIS.md` updated
+(overall ~70% → ~75%).
+
+**Known minor gap:** the reminder is scheduled on the taker's device;
+cancelling it when the provider declines (a cross-device action) is not wired.

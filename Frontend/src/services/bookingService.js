@@ -13,6 +13,7 @@ import {
 
 import { sendBookingEmail } from '../api/endpoints/email';
 import { db } from './firebaseService';
+import { scheduleBookingReminder } from './reminderService';
 
 const sortByScheduledAsc = (items) =>
   items.sort(
@@ -38,10 +39,18 @@ const notifyBookingEvent = (event, ref) => {
 
 export const saveBookingForUser = async (uid, booking) => {
   if (!uid || !booking) return null;
+
+  // Schedule the appointment reminder on the taker's device first, so its
+  // id can be persisted on the booking. Best-effort — returns null if
+  // notifications are blocked or there's nothing valid to schedule.
+  const reminder = await scheduleBookingReminder(booking);
+
   const ref = await addDoc(collection(db, 'bookings'), {
     ...booking,
     takerId: uid,
     status: booking.status || 'pending',
+    reminderId: reminder?.id || null,
+    reminderAt: reminder?.fireAt || null,
     createdAt: serverTimestamp(),
   });
   // Best-effort confirmation emails (to the taker and the provider). Fire and
@@ -142,11 +151,13 @@ export const declineBooking = async (bookingId) => {
 
 export const markBookingCompleted = async (bookingId) => {
   if (!bookingId) return;
-  await updateDoc(doc(db, 'bookings', bookingId), {
+  const ref = doc(db, 'bookings', bookingId);
+  await updateDoc(ref, {
     status: 'completed',
     completedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+  notifyBookingEvent('completed', ref);
 };
 
 export const markBookingReviewed = async (bookingId) => {
