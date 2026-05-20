@@ -1,19 +1,7 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import orchestrationRoutes from './routes/orchestration.js';
-import emailRoutes from './routes/email.js';
+import app from './app.js';
 
-dotenv.config();
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Routes
-app.use('/api/orchestration', orchestrationRoutes);
-app.use('/api/email', emailRoutes);
-
+// Local development entry point.
+// On Vercel the app is served as a serverless function via api/index.js.
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
