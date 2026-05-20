@@ -363,3 +363,56 @@ section so it matches exactly how the team used Antigravity.
 
 **Status:** All Challenge 2 requirements (6/6 + 7/7) and all 4 deliverables are
 complete.
+
+### 13. In-app notifications screen
+
+**Requested:** A notifications screen reachable from the home-screen bell icon —
+lists all notifications with time + a "Clear All" button.
+
+**Implemented:**
+- `src/services/notificationService.js` (new) — a Firestore `notifications`
+  collection: `addNotification`, `getNotificationsForUser` (newest first),
+  `clearNotificationsForUser` (batch delete — powers "Clear All").
+- `src/services/bookingService.js` — booking events now write in-app
+  notifications: `saveBookingForUser` notifies the taker ("Booking request
+  sent") and the provider ("New booking request"); `notifyBookingEvent` notifies
+  the taker on accept / decline / complete. All best-effort.
+- `app/notifications.jsx` (new) — the Notifications screen: list with a
+  per-type icon, title, body, relative time ("2h ago"), pull-to-refresh, empty
+  state, and a header **"Clear All"** action (with a confirm dialog).
+- `TakerHomeScreen.jsx` + `ProviderHomeScreen.jsx` — the header bell's
+  `onBellPress` now routes to `/notifications`.
+
+**Files changed:** `src/services/notificationService.js` (new),
+`app/notifications.jsx` (new), `src/services/bookingService.js`,
+`src/screens/Home/TakerHomeScreen.jsx`,
+`src/screens/Home/ProviderHomeScreen.jsx`.
+
+**Note:** the feed currently covers booking events (created / request /
+accepted / declined / completed). The unread-count bell badge is left as-is.
+
+**Follow-up:** the Notifications screen showed a double header (the expo-router
+native Stack header on top of the custom `Header`). Fixed by adding
+`<Stack.Screen options={{ headerShown: false }} />` to `app/notifications.jsx`.
+
+### 14. Edit Profile — custom toast + live profile refresh
+
+**Reported:** (1) editing the profile showed the **native** alert; (2) profile
+changes didn't reflect on the Profile screen until a manual reload.
+
+**Fixed:**
+- `src/components/Toast/` (new) — a reusable app-styled toast: a brief
+  non-blocking banner that slides in from the top, auto-dismisses, with
+  success / error / info variants.
+- `app/edit-profile.jsx` — replaced all four native `Alert.alert` calls
+  (validation, upload error, save success, save error) with the `Toast`. On a
+  successful save it shows "Profile updated successfully" then returns to the
+  profile.
+- `src/screens/Profile/ProfileScreen.jsx` — changed the profile load from
+  `useEffect` to **`useFocusEffect`**, so the screen re-fetches every time it
+  regains focus. Returning from Edit Profile now shows the updated name / photo /
+  bio immediately.
+
+**Files changed:** `src/components/Toast/Toast.jsx` (new),
+`src/components/Toast/index.js` (new), `app/edit-profile.jsx`,
+`src/screens/Profile/ProfileScreen.jsx`.
