@@ -36,6 +36,7 @@ export default function TabLayout() {
         options={{
           title: 'Chat',
           tabBarIcon: ({ color }) => <TabBarIcon name="comments" color={color} />,
+          tabBarHideOnKeyboard: true,
         }}
       />
       <Tabs.Screen

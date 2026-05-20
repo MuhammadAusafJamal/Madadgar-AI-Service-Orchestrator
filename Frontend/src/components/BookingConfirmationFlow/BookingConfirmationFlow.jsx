@@ -1,7 +1,19 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Modal, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Animated,
+  Easing,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
+import { TIME_SLOTS, buildDateOptions } from '@/src/constants/booking';
 import { PALETTE } from '@/src/theme';
 import { styles, MUTED } from './BookingConfirmationFlow.styles';
 
@@ -17,16 +29,81 @@ const DEFAULT_QUOTES = [
 const QUOTE_INTERVAL_MS = 1500;
 const DEFAULT_DURATION_MS = 4500;
 
+// Map a natural-language time string (from the chat assistant) to the closest
+// matching dateKey + timeSlot from our chips. Returns { dateKey, timeSlot }
+// with either field null when the parser couldn't infer it.
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+const parsePrefilledTime = (text, dateOptions) => {
+  const result = { dateKey: null, timeSlot: null };
+  if (!text || typeof text !== 'string') return result;
+  const lower = text.toLowerCase();
+
+  // Date: today / tomorrow / weekday
+  if (/\btoday\b/.test(lower) || /\bnow\b/.test(lower) || /\basap\b/.test(lower) || /\bavailable\b/.test(lower)) {
+    result.dateKey = dateOptions[0]?.key || null;
+  } else if (/\btomorrow\b/.test(lower)) {
+    result.dateKey = dateOptions[1]?.key || null;
+  } else {
+    const today = new Date();
+    for (let i = 0; i < WEEKDAYS.length; i += 1) {
+      const day = WEEKDAYS[i];
+      const re = new RegExp(`\\b${day.slice(0, 3)}\\w*\\b`);
+      if (re.test(lower)) {
+        const diff = (i - today.getDay() + 7) % 7 || 7;
+        const target = dateOptions[diff];
+        if (target) result.dateKey = target.key;
+        break;
+      }
+    }
+  }
+
+  // Time: explicit clock OR period word
+  const clock = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
+  if (clock) {
+    const hh = parseInt(clock[1], 10);
+    const meridian = clock[3].toUpperCase();
+    const wanted = `${hh}:00 ${meridian}`;
+    if (TIME_SLOTS.includes(wanted)) result.timeSlot = wanted;
+  } else if (/\bmorning\b/.test(lower)) {
+    result.timeSlot = '10:00 AM';
+  } else if (/\bnoon\b/.test(lower)) {
+    result.timeSlot = '12:00 PM';
+  } else if (/\bafternoon\b/.test(lower)) {
+    result.timeSlot = '2:00 PM';
+  } else if (/\bevening\b/.test(lower)) {
+    result.timeSlot = '6:00 PM';
+  } else if (/\bnight\b/.test(lower)) {
+    result.timeSlot = '8:00 PM';
+  }
+
+  return result;
+};
+
 export default function BookingConfirmationFlow({
   visible,
   onClose,
   onViewBooking,
+  onSubmit,
   booking,
+  defaultLocation = '',
+  defaultTimeText = '',
   quotes = DEFAULT_QUOTES,
   durationMs = DEFAULT_DURATION_MS,
 }) {
-  const [phase, setPhase] = useState('loading');
+  const [phase, setPhase] = useState('form');
   const [quoteIndex, setQuoteIndex] = useState(0);
+
+  const dateOptions = useMemo(buildDateOptions, []);
+  const parsedDefaults = useMemo(
+    () => parsePrefilledTime(defaultTimeText, dateOptions),
+    [defaultTimeText, dateOptions],
+  );
+
+  const [location, setLocation] = useState(defaultLocation);
+  const [dateKey, setDateKey] = useState(parsedDefaults.dateKey || dateOptions[0]?.key);
+  const [timeSlot, setTimeSlot] = useState(parsedDefaults.timeSlot || TIME_SLOTS[1]);
+  const [reason, setReason] = useState('');
 
   const spinValue = useRef(new Animated.Value(0)).current;
   const quoteFade = useRef(new Animated.Value(1)).current;
@@ -35,12 +112,19 @@ export default function BookingConfirmationFlow({
 
   useEffect(() => {
     if (!visible) return;
-
-    setPhase('loading');
+    setPhase('form');
     setQuoteIndex(0);
+    setLocation(defaultLocation);
+    setDateKey(parsedDefaults.dateKey || dateOptions[0]?.key);
+    setTimeSlot(parsedDefaults.timeSlot || TIME_SLOTS[1]);
+    setReason('');
     quoteFade.setValue(1);
     successScale.setValue(0.6);
     successOpacity.setValue(0);
+  }, [visible, defaultLocation, parsedDefaults, dateOptions]);
+
+  useEffect(() => {
+    if (phase !== 'loading') return undefined;
 
     const spinLoop = Animated.loop(
       Animated.timing(spinValue, {
@@ -94,17 +178,187 @@ export default function BookingConfirmationFlow({
       clearInterval(quoteTimer);
       clearTimeout(successTimer);
     };
-  }, [visible, durationMs, quotes.length]);
+  }, [phase, durationMs, quotes.length]);
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
 
+  const isFormValid =
+    location.trim().length > 0 &&
+    !!dateKey &&
+    !!timeSlot &&
+    reason.trim().length > 0;
+
+  const submittedDateLabel =
+    dateOptions.find((d) => d.key === dateKey)?.label || '';
+
+  const handleConfirm = () => {
+    if (!isFormValid) return;
+    const payload = {
+      location: location.trim(),
+      dateKey,
+      dateLabel: submittedDateLabel,
+      timeSlot,
+      reason: reason.trim(),
+      scheduledAt: new Date(`${dateKey}T${convertTo24h(timeSlot)}:00`),
+    };
+    if (typeof onSubmit === 'function') {
+      try {
+        onSubmit(payload);
+      } catch (_) {
+        // ignore — submission errors shouldn't block the UI flow
+      }
+    }
+    setPhase('loading');
+  };
+
+  const renderForm = () => (
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ width: '100%' }}
+    >
+      <View style={styles.formHeaderRow}>
+        <Text style={styles.formTitle}>Book this service</Text>
+        <TouchableOpacity style={styles.formCloseBtn} onPress={onClose}>
+          <Ionicons name="close" size={18} color={PALETTE.white} />
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.formSubtitle}>
+        Share a few details so the provider can prepare and arrive ready.
+      </Text>
+
+      <ScrollView
+        style={styles.formScroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.fieldGroup}>
+          <View style={styles.fieldLabelRow}>
+            <Ionicons name="location-outline" size={16} color={PALETTE.golden} />
+            <Text style={styles.fieldLabel}>Your location</Text>
+          </View>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Address, area or landmark"
+            placeholderTextColor={MUTED}
+            value={location}
+            onChangeText={setLocation}
+          />
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <View style={styles.fieldLabelRow}>
+            <Ionicons name="calendar-outline" size={16} color={PALETTE.golden} />
+            <Text style={styles.fieldLabel}>Preferred date</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+          >
+            {dateOptions.map((d) => {
+              const active = d.key === dateKey;
+              return (
+                <TouchableOpacity
+                  key={d.key}
+                  style={[styles.chipBtn, active && styles.chipBtnActive]}
+                  onPress={() => setDateKey(d.key)}
+                >
+                  <Text
+                    style={[styles.chipText, active && styles.chipTextActive]}
+                  >
+                    {d.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <View style={styles.fieldLabelRow}>
+            <Ionicons name="time-outline" size={16} color={PALETTE.golden} />
+            <Text style={styles.fieldLabel}>Preferred time</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScroll}
+          >
+            {TIME_SLOTS.map((t) => {
+              const active = t === timeSlot;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  style={[styles.chipBtn, active && styles.chipBtnActive]}
+                  onPress={() => setTimeSlot(t)}
+                >
+                  <Text
+                    style={[styles.chipText, active && styles.chipTextActive]}
+                  >
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        <View style={styles.fieldGroup}>
+          <View style={styles.fieldLabelRow}>
+            <Ionicons
+              name="document-text-outline"
+              size={16}
+              color={PALETTE.golden}
+            />
+            <Text style={styles.fieldLabel}>What needs fixing?</Text>
+          </View>
+          <TextInput
+            style={[styles.textInput, styles.textArea]}
+            placeholder="e.g. Kitchen tap is leaking from the base, sometimes drips even when closed."
+            placeholderTextColor={MUTED}
+            value={reason}
+            onChangeText={setReason}
+            multiline
+            numberOfLines={4}
+            maxLength={500}
+          />
+          <Text style={styles.helperText}>
+            A clear description helps the provider come prepared.
+          </Text>
+        </View>
+      </ScrollView>
+
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.secondaryBtn]}
+          onPress={onClose}
+        >
+          <Text style={styles.secondaryBtnText}>Cancel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.actionBtn,
+            styles.primaryBtn,
+            !isFormValid && styles.primaryBtnDisabled,
+          ]}
+          disabled={!isFormValid}
+          onPress={handleConfirm}
+        >
+          <Text style={styles.primaryBtnText}>Confirm Booking</Text>
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+  );
+
   const renderLoading = () => (
     <View style={styles.body}>
       <View style={styles.spinnerWrap}>
-        <Animated.View style={[styles.spinnerRing, { transform: [{ rotate: spin }] }]} />
+        <Animated.View
+          style={[styles.spinnerRing, { transform: [{ rotate: spin }] }]}
+        />
         <View style={styles.spinnerCenter}>
           <Ionicons name="sparkles" size={22} color={PALETTE.golden} />
         </View>
@@ -118,7 +372,10 @@ export default function BookingConfirmationFlow({
 
       <View style={styles.dotsRow}>
         {quotes.map((_, i) => (
-          <View key={i} style={[styles.dot, i === quoteIndex && styles.dotActive]} />
+          <View
+            key={i}
+            style={[styles.dot, i === quoteIndex && styles.dotActive]}
+          />
         ))}
       </View>
     </View>
@@ -126,13 +383,13 @@ export default function BookingConfirmationFlow({
 
   const renderSuccess = () => {
     const title = booking?.title || 'Booking Request Sent';
-    const provider = booking?.provider || 'the provider';
+    const providerName = booking?.provider || 'the provider';
     const subtitle =
       booking?.subtitle ||
-      `Your request has been sent to ${provider}. They will review and reply shortly in chat.`;
-    const dateLabel = booking?.dateLabel || booking?.date || 'Today';
+      `Your request has been sent to ${providerName}. They will review and reply shortly in chat.`;
     const serviceLabel = booking?.serviceLabel || booking?.service || 'Service';
-    const locationLabel = booking?.locationLabel || booking?.location || '';
+    const whenLabel = `${submittedDateLabel} · ${timeSlot}`;
+    const locationLabel = location || booking?.locationLabel || '';
 
     return (
       <Animated.View
@@ -153,7 +410,7 @@ export default function BookingConfirmationFlow({
         <View style={styles.detailsCard}>
           <View style={styles.detailRow}>
             <Ionicons name="calendar-outline" size={18} color={MUTED} />
-            <Text style={styles.detailText}>{dateLabel}</Text>
+            <Text style={styles.detailText}>{whenLabel}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.detailRow}>
@@ -171,10 +428,28 @@ export default function BookingConfirmationFlow({
               </View>
             </>
           )}
+          {!!reason && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.detailRow}>
+                <Ionicons
+                  name="document-text-outline"
+                  size={18}
+                  color={MUTED}
+                />
+                <Text style={styles.detailText} numberOfLines={3}>
+                  {reason}
+                </Text>
+              </View>
+            </>
+          )}
         </View>
 
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={[styles.actionBtn, styles.secondaryBtn]} onPress={onClose}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.secondaryBtn]}
+            onPress={onClose}
+          >
             <Text style={styles.secondaryBtnText}>Close</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -188,19 +463,39 @@ export default function BookingConfirmationFlow({
     );
   };
 
+  const renderPhase = () => {
+    if (phase === 'form') return renderForm();
+    if (phase === 'loading') return renderLoading();
+    return renderSuccess();
+  };
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
-      onRequestClose={phase === 'success' ? onClose : undefined}
+      onRequestClose={phase === 'loading' ? undefined : onClose}
       statusBarTranslucent
     >
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          {phase === 'loading' ? renderLoading() : renderSuccess()}
+        <View
+          style={[styles.sheet, phase === 'form' && styles.sheetForm]}
+        >
+          {renderPhase()}
         </View>
       </View>
     </Modal>
   );
+}
+
+function convertTo24h(slot) {
+  // "9:00 AM" -> "09:00", "1:00 PM" -> "13:00"
+  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(slot || '');
+  if (!match) return '09:00';
+  let hour = parseInt(match[1], 10);
+  const minute = match[2];
+  const meridian = match[3].toUpperCase();
+  if (meridian === 'PM' && hour !== 12) hour += 12;
+  if (meridian === 'AM' && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, '0')}:${minute}`;
 }

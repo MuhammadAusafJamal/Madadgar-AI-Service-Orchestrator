@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Category from '@/src/components/Category';
 import FilterSheet, { SORT_OPTIONS } from '@/src/components/FilterSheet';
 import Header from '@/src/components/Header';
+import { useNotifications } from '@/src/context/NotificationsContext';
 import ServiceCard from '@/src/components/ServiceCard';
 import SubHeaderItem from '@/src/components/SubHeaderItem';
 import { getCategoryById } from '@/src/constants/categories';
@@ -41,6 +42,7 @@ export default function TakerHomeScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const { user, role } = useAuth();
+  const { unreadCount } = useNotifications();
   const styles = makeStyles(colors);
 
   const [search, setSearch] = useState('');
@@ -163,8 +165,9 @@ export default function TakerHomeScreen() {
           profileHeaderProps={{
             profileImage: avatarUri,
             username: firstName,
-            unreadNotificationCount: 0,
+            unreadNotificationCount: unreadCount,
             onAvatarPress: () => router.push('/(tabs)/profile'),
+            onBellPress: () => router.push('/notifications'),
           }}
         />
 
@@ -243,7 +246,11 @@ export default function TakerHomeScreen() {
             </ScrollView>
           )}
 
-          <SubHeaderItem title="Featured Providers" navTitle="See all" />
+          <SubHeaderItem
+            title="Featured Providers"
+            navTitle="See all"
+            onPress={() => router.push('/providers')}
+          />
           {provLoading ? (
             <ActivityIndicator color={colors.accent} style={{ paddingVertical: 24 }} />
           ) : featuredProviders.length === 0 ? (
@@ -309,7 +316,8 @@ export default function TakerHomeScreen() {
                     ? `${getCategoryById(selectedCategories[0]).name} Services`
                     : 'Popular Services Near You'
                 }
-                navTitle={`${services.length} result${services.length === 1 ? '' : 's'}`}
+                navTitle="See all"
+                onPress={() => router.push('/services')}
               />
             </View>
 

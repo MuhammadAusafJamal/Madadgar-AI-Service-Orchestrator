@@ -100,7 +100,9 @@ export const makeStyles = (colors) =>
     inputBar: {
       flexDirection: 'row',
       alignItems: 'flex-end',
-      padding: 12,
+      paddingHorizontal: 12,
+      paddingTop: 10,
+      paddingBottom: 8,
       gap: 8,
       borderTopWidth: 1,
       borderTopColor: colors.border,
@@ -127,5 +129,141 @@ export const makeStyles = (colors) =>
     },
     sendButtonDisabled: {
       opacity: 0.5,
+    },
+
+    intentChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginTop: 8,
+      maxWidth: '90%',
+    },
+    intentChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    intentChipText: {
+      color: colors.textSecondary,
+      fontSize: 11,
+      fontWeight: '600',
+    },
+
+    suggestionsWrap: {
+      marginTop: 10,
+      gap: 8,
+      width: '92%',
+    },
+    suggestionCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 8,
+      borderRadius: 14,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    suggestionImage: {
+      width: 56,
+      height: 56,
+      borderRadius: 10,
+      backgroundColor: colors.border,
+    },
+    suggestionBody: {
+      flex: 1,
+      gap: 3,
+    },
+    suggestionTitle: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '700',
+    },
+    suggestionMetaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    suggestionMeta: {
+      color: colors.textSecondary,
+      fontSize: 11,
+      flexShrink: 1,
+    },
+    suggestionMetaDot: {
+      color: colors.textSecondary,
+      fontSize: 11,
+      marginHorizontal: 2,
+    },
+    suggestionPrice: {
+      color: colors.accent,
+      fontSize: 12,
+      fontWeight: '700',
+    },
+    suggestionBookBtn: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+      backgroundColor: colors.accent,
+    },
+    suggestionBookText: {
+      color: '#1a1a1a',
+      fontSize: 12,
+      fontWeight: '800',
+    },
+
+    noMatchesWrap: {
+      marginTop: 10,
+      width: '92%',
+      gap: 8,
+    },
+    noMatchesText: {
+      color: colors.textSecondary,
+      fontSize: 12,
+      fontStyle: 'italic',
+      lineHeight: 16,
+    },
+    categoryChipsWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    categoryChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+    },
+    categoryChipText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    slotChipsRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+    },
+    slotChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    slotChipText: {
+      color: colors.text,
+      fontSize: 11,
+      fontWeight: '600',
     },
   });

@@ -26,6 +26,11 @@ export const styles = StyleSheet.create({
     padding: 24,
     overflow: 'hidden',
   },
+  sheetForm: {
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    maxHeight: '90%',
+  },
   body: {
     alignItems: 'center',
   },
@@ -167,5 +172,96 @@ export const styles = StyleSheet.create({
     color: PALETTE.black,
     fontSize: 15,
     fontWeight: '700',
+  },
+  primaryBtnDisabled: {
+    opacity: 0.45,
+  },
+
+  formHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  formTitle: {
+    color: PALETTE.white,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  formCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: CARD,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formSubtitle: {
+    color: MUTED,
+    fontSize: 13,
+    marginBottom: 18,
+    lineHeight: 18,
+  },
+  formScroll: {
+    width: '100%',
+  },
+  fieldGroup: {
+    marginBottom: 16,
+  },
+  fieldLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fieldLabel: {
+    color: PALETTE.white,
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  textInput: {
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: PALETTE.white,
+    fontSize: 14,
+  },
+  textArea: {
+    minHeight: 88,
+    textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  chipScroll: {
+    paddingVertical: 2,
+  },
+  chipBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: CARD,
+    marginRight: 8,
+  },
+  chipBtnActive: {
+    backgroundColor: PALETTE.golden,
+    borderColor: PALETTE.golden,
+  },
+  chipText: {
+    color: PALETTE.white,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: PALETTE.black,
+    fontWeight: '700',
+  },
+  helperText: {
+    color: MUTED,
+    fontSize: 11,
+    marginTop: 6,
   },
 });

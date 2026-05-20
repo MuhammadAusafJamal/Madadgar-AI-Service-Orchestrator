@@ -1,6 +1,6 @@
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -193,10 +193,21 @@ export default function ServiceDetails() {
   const styles = makeStyles(colors);
 
   const serviceId = params.id;
+  const prefillLocation = typeof params.prefillLocation === 'string' ? params.prefillLocation : '';
+  const prefillTime = typeof params.prefillTime === 'string' ? params.prefillTime : '';
+  const autoBook = params.autoBook === 'true';
   const { service, provider, reviews, loading } = useServiceDetail(serviceId);
 
   const [tab, setTab] = useState('details');
   const [bookingVisible, setBookingVisible] = useState(false);
+  const autoOpenedRef = useRef(false);
+
+  useEffect(() => {
+    if (autoBook && service && !autoOpenedRef.current) {
+      autoOpenedRef.current = true;
+      setBookingVisible(true);
+    }
+  }, [autoBook, service]);
 
   const fallbackImage = useMemo(
     () => `https://picsum.photos/seed/${serviceId || 'service'}/800/600`,
@@ -216,11 +227,12 @@ export default function ServiceDetails() {
       }
     : null;
 
-  const handleBookingPress = async () => {
-    if (!service || !provider || !user?.uid) {
-      setBookingVisible(true);
-      return;
-    }
+  const handleBookingPress = () => {
+    setBookingVisible(true);
+  };
+
+  const handleBookingSubmit = (formData) => {
+    if (!service || !provider || !user?.uid) return;
     saveBookingForUser(user.uid, {
       providerId: provider.id,
       providerName: provider.fullName,
@@ -228,9 +240,14 @@ export default function ServiceDetails() {
       serviceTitle: service.title,
       status: 'pending',
       price: service.basePrice,
-      location: service.location,
+      location: formData?.location || service.location,
+      scheduledFor: formData?.scheduledAt
+        ? formData.scheduledAt.toISOString()
+        : null,
+      preferredDate: formData?.dateLabel || null,
+      preferredTime: formData?.timeSlot || null,
+      reason: formData?.reason || null,
     }).catch(() => {});
-    setBookingVisible(true);
   };
 
   const handleChatPress = () => {
@@ -360,11 +377,14 @@ export default function ServiceDetails() {
         <BookingConfirmationFlow
           visible={bookingVisible}
           onClose={() => setBookingVisible(false)}
+          onSubmit={handleBookingSubmit}
           onViewBooking={() => {
             setBookingVisible(false);
             router.push('/(tabs)/bookings');
           }}
           booking={bookingPayload}
+          defaultLocation={prefillLocation || service?.location || ''}
+          defaultTimeText={prefillTime}
         />
       )}
     </SafeAreaView>

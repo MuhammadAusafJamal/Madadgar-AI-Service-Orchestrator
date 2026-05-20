@@ -1,12 +1,5 @@
 import { logger } from '../utils/logger.js';
 import { IntentAgent } from '../agents/intentAgent.js';
-import { LocationAgent } from '../agents/locationAgent.js';
-import { ProviderAgent } from '../agents/providerAgent.js';
-import { RankingAgent } from '../agents/rankingAgent.js';
-import { DecisionAgent } from '../agents/decisionAgent.js';
-import { BookingAgent } from '../agents/bookingAgent.js';
-import { NotificationAgent } from '../agents/notificationAgent.js';
-import { FollowupAgent } from '../agents/followupAgent.js';
 
 export class Orchestrator {
   static async processRequest(userInput, history = '') {
@@ -17,7 +10,23 @@ export class Orchestrator {
       // Step 1: Understand Intent
       const intent = await IntentAgent.extractIntent(userInput, history);
       const userLang = intent.language || 'english';
-      
+
+      // Short-circuit for smalltalk / off-topic / unclear messages — no booking pipeline needed.
+      if (intent.intentType && intent.intentType !== 'service_request') {
+        const message = await IntentAgent.generateDynamicMessage('smalltalk', userLang, {
+          userInput,
+        });
+        logger.log('Orchestrator Agent', 'Smalltalk / unclear input, replying conversationally', {
+          intentType: intent.intentType,
+        });
+        return {
+          success: true,
+          message,
+          intent,
+          logs: logger.getLogs(),
+        };
+      }
+
       const missingFields = [];
       if (!intent.service) missingFields.push('service type (e.g., AC Technician, Plumber)');
       if (!intent.location) missingFields.push('specific location including city (e.g., DHA Karachi, G-13 Islamabad)');
@@ -29,57 +38,33 @@ export class Orchestrator {
         return {
           success: true,
           message,
-          logs: logger.getLogs()
+          intent,
+          logs: logger.getLogs(),
         };
       }
 
-      // Step 2: Location and Distance Geocoding
-      const coordinates = await LocationAgent.geocodeLocation(intent.location);
-
-      // Step 3: Discover Providers
-      const providers = await ProviderAgent.discoverProviders(intent.service, coordinates);
-
-      // Step 4: Rank Providers
-      const rankedProviders = RankingAgent.rankProviders(providers, coordinates);
-
-      // Step 5: Decision Selection
-      const bestProvider = DecisionAgent.selectBestProvider(rankedProviders);
-
-      if (!bestProvider) {
-        throw new Error('No available providers found nearby.');
-      }
-
-      // Step 6: Booking
-      const booking = await BookingAgent.createBooking(bestProvider, intent);
-
-      // Step 7: Notification (n8n Webhook)
-      await NotificationAgent.sendNotification(booking);
-
-      // Step 8: Follow Up Scheduling
-      await FollowupAgent.scheduleFollowup(booking);
-
-      logger.log('Orchestrator Agent', 'Workflow execution completed successfully');
-
-      const successMessage = await IntentAgent.generateDynamicMessage('success', userLang, {
+      // Intent is complete — hand back to the frontend so it can match real services
+      // from the Firestore catalog and let the user pick one to book.
+      const message = await IntentAgent.generateDynamicMessage('suggestions', userLang, {
         service: intent.service,
-        providerName: bestProvider.name,
         location: intent.location,
-        time: intent.time
+        time: intent.time,
       });
+
+      logger.log('Orchestrator Agent', 'Intent complete, returning suggestions context', intent);
 
       return {
         success: true,
-        booking,
-        message: successMessage,
-        logs: logger.getLogs()
+        intent,
+        message,
+        logs: logger.getLogs(),
       };
-
     } catch (error) {
       logger.log('Orchestrator Agent', 'Workflow failed', { error: error.message });
       return {
         success: false,
         message: error.message,
-        logs: logger.getLogs()
+        logs: logger.getLogs(),
       };
     }
   }
