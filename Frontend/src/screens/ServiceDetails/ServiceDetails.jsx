@@ -84,6 +84,14 @@ const DetailsTab = ({ styles, service, provider }) => (
             <Text style={styles.organizerTagline} numberOfLines={2}>
               {provider.bio}
             </Text>
+            {!!provider.email && (
+              <View style={styles.providerContactRow}>
+                <Ionicons name="mail-outline" size={12} color={PALETTE.golden} />
+                <Text style={styles.providerContactText} numberOfLines={1}>
+                  {provider.email}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </>
@@ -236,10 +244,13 @@ export default function ServiceDetails() {
     saveBookingForUser(user.uid, {
       providerId: provider.id,
       providerName: provider.fullName,
+      providerEmail: provider.email || null,
       serviceId: service.id,
       serviceTitle: service.title,
       status: 'pending',
       price: service.basePrice,
+      takerName: user.displayName || null,
+      takerEmail: user.email || null,
       location: formData?.location || service.location,
       scheduledFor: formData?.scheduledAt
         ? formData.scheduledAt.toISOString()

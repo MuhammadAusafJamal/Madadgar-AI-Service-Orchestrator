@@ -93,3 +93,64 @@ generic fallback for unknown codes. The three auth screens now display
 `src/screens/Auth/LoginScreen/LoginScreen.jsx`,
 `src/screens/Auth/ServiceTakerSignupScreen/ServiceTakerSignupScreen.jsx`,
 `src/screens/Auth/ProviderSignupScreen/ProviderSignupScreen.jsx`.
+
+### 6. Booking email service
+
+**Requested:** Send emails for booking events — and it must be **totally free**.
+
+**Approach chosen:** Send via the existing Express backend over **Brevo's SMTP
+relay** using **Nodemailer** (free tier: 300 emails/day, no credit card, only a
+single verified sender address needed).
+
+**Events covered:**
+- Booking created → emails the **taker** (confirmation) and the **provider**
+  ("new booking request").
+- Provider accepts → emails the taker.
+- Provider declines → emails the taker.
+
+**Backend (`/Backend`):**
+- `utils/email.js` (new) — `sendEmail()` transport over SMTP via Nodemailer.
+  Best-effort: never throws; skips cleanly if SMTP vars are unset.
+- `package.json` — added the `nodemailer` dependency.
+- `routes/email.js` (new) — `POST /api/email/booking` `{ event, booking }`,
+  builds branded HTML templates and sends to the right recipients.
+- `server.js` — registered `app.use('/api/email', emailRoutes)`.
+
+**Frontend (`/Frontend`):**
+- `src/api/endpoints/email.js` (new) — `sendBookingEmail({ event, booking })`.
+- `src/services/bookingService.js` — `saveBookingForUser` fires the `created`
+  email; `acceptBooking` / `declineBooking` fetch the booking and fire the
+  `accepted` / `declined` emails. All best-effort (fire-and-forget) so email
+  never blocks a booking.
+- `src/screens/ServiceDetails/ServiceDetails.jsx` — booking now stores
+  `takerEmail`, `takerName`, `providerEmail` so later status emails have
+  recipients.
+
+**Required setup (one-time, by the user):**
+Add to `Backend/.env` (values from Brevo's SMTP settings tab):
+```
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=<Login from Brevo>
+SMTP_PASS=<Password / SMTP key from Brevo>
+EMAIL_SENDER_NAME=Madadgar
+EMAIL_SENDER_ADDRESS=your-verified-sender@example.com
+```
+Steps: verify a sender email in Brevo under Senders & Domains → copy the SMTP
+server / Port / Login / Password from the SMTP settings tab into the vars above
+→ restart the backend. Until SMTP vars are set, sends are skipped (logged) and
+bookings still work normally.
+
+**Note:** Demo/seed providers may lack an `email` field — the provider
+notification simply skips for them; real registered providers have it.
+
+### 7. Show provider email in the Details tab
+
+**Requested:** Display the provider's email address in the Details tab of the
+service details screen.
+
+**Fix:** Added an email row (mail icon + address) under the Provider card in
+`DetailsTab`, shown only when `provider.email` exists.
+
+**Files changed:** `src/screens/ServiceDetails/ServiceDetails.jsx`,
+`src/screens/ServiceDetails/ServiceDetails.styles.js`.

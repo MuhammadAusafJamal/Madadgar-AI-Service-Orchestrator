@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   getCountFromServer,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -10,6 +11,7 @@ import {
   where,
 } from 'firebase/firestore';
 
+import { sendBookingEmail } from '../api/endpoints/email';
 import { db } from './firebaseService';
 
 const sortByScheduledAsc = (items) =>
@@ -22,6 +24,18 @@ const sortByCreatedDesc = (items) =>
     (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
   );
 
+// Fetch a booking and fire its status-change emails. Best-effort: any failure
+// here must never surface to the caller that changed the booking status.
+const notifyBookingEvent = (event, ref) => {
+  getDoc(ref)
+    .then((snap) =>
+      snap.exists()
+        ? sendBookingEmail({ event, booking: { id: snap.id, ...snap.data() } })
+        : null,
+    )
+    .catch(() => {});
+};
+
 export const saveBookingForUser = async (uid, booking) => {
   if (!uid || !booking) return null;
   const ref = await addDoc(collection(db, 'bookings'), {
@@ -30,6 +44,12 @@ export const saveBookingForUser = async (uid, booking) => {
     status: booking.status || 'pending',
     createdAt: serverTimestamp(),
   });
+  // Best-effort confirmation emails (to the taker and the provider). Fire and
+  // forget so an email/backend issue never blocks or delays the booking.
+  sendBookingEmail({
+    event: 'created',
+    booking: { id: ref.id, ...booking },
+  }).catch(() => {});
   return ref.id;
 };
 
@@ -102,18 +122,22 @@ export const getWeekEarningsForProvider = async (providerId) => {
 
 export const acceptBooking = async (bookingId) => {
   if (!bookingId) return;
-  await updateDoc(doc(db, 'bookings', bookingId), {
+  const ref = doc(db, 'bookings', bookingId);
+  await updateDoc(ref, {
     status: 'accepted',
     updatedAt: serverTimestamp(),
   });
+  notifyBookingEvent('accepted', ref);
 };
 
 export const declineBooking = async (bookingId) => {
   if (!bookingId) return;
-  await updateDoc(doc(db, 'bookings', bookingId), {
+  const ref = doc(db, 'bookings', bookingId);
+  await updateDoc(ref, {
     status: 'declined',
     updatedAt: serverTimestamp(),
   });
+  notifyBookingEvent('declined', ref);
 };
 
 export const markBookingCompleted = async (bookingId) => {

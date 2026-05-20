@@ -169,6 +169,17 @@ export const makeStyles = (_colors) =>
       fontSize: 12,
       marginTop: 2,
     },
+    providerContactRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: 6,
+    },
+    providerContactText: {
+      color: PALETTE.golden,
+      fontSize: 12,
+      flexShrink: 1,
+    },
     followBtn: {
       paddingHorizontal: 14,
       paddingVertical: 8,
