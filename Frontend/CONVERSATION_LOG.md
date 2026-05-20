@@ -308,3 +308,32 @@ Requirements now **6 / 7** (only #7, the agentic workflow, remains).
 
 **Action needed:** Tap "Reseed Demo Data" in Profile so existing services pick
 up the new `availability` field.
+
+### 11. Agentic workflow + Gemini switch (Challenge 2, System Req #7)
+
+**Context:** System Requirement #7 (Agentic Workflow, MANDATORY) — the backend
+had 8 agent files but the `Orchestrator` only ran `IntentAgent`; the other 7
+were dead code. Also switched the LLM to Gemini.
+
+**Implemented (backend):**
+- `agents/intentAgent.js` — replaced the OpenRouter (`callOpenRouter`,
+  `gpt-5.3-chat`) implementation with **Google Gemini** via `@google/genai`
+  (`callGemini`, `gemini-2.5-flash`, JSON mode via `responseMimeType`). Reads
+  `GEMINI_API_KEY` (+ optional `GEMINI_MODEL`).
+- `workflows/orchestrator.js` — on a complete intent, now runs the full
+  **8-agent pipeline**: Intent → Location (geocode) → Provider (discover) →
+  Ranking → Decision → Booking (simulated) → Follow-up → Notification. Every
+  agent logs, so `result.logs` is now a rich multi-agent trace.
+- Approach **B**: the pipeline drives the trace (the in-app Agent Log tab lights
+  up automatically); the client still does the real Firestore booking. The
+  pipeline is best-effort — a failed step never breaks the chat reply.
+
+**Files changed:** `Backend/agents/intentAgent.js`,
+`Backend/workflows/orchestrator.js`.
+
+**Setup:** set `GEMINI_API_KEY` in `Backend/.env` (OpenRouter vars no longer
+used). Restart the backend.
+
+**Result:** Challenge 2 System Requirement #7 → ✅ Done — **System Requirements
+now 7/7; all functional requirements complete.** `CHALLENGE_2_ANALYSIS.md`
+updated (overall ~85% → ~90%). Remaining: README + demo video (non-code).

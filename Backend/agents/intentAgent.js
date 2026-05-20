@@ -1,42 +1,26 @@
+import { GoogleGenAI } from '@google/genai';
 import { logger } from '../utils/logger.js';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// OpenRouter (OpenAI-compatible) configuration. We accept either
-// OPENROUTER_API_KEY (preferred) or fall back to GEMINI_API_KEY in case the
-// user just renamed the value of an existing env var.
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || process.env.GEMINI_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'openai/gpt-5.3-chat';
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+// Google Gemini configuration — the intent agent uses the official
+// @google/genai SDK with GEMINI_API_KEY from the environment.
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-async function callOpenRouter(prompt, { json = false } = {}) {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not set in environment.');
+async function callGemini(prompt, { json = false } = {}) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not set in environment.');
   }
-  const body = {
-    model: OPENROUTER_MODEL,
-    messages: [{ role: 'user', content: prompt }],
-  };
-  if (json) {
-    body.response_format = { type: 'json_object' };
-  }
-  const res = await fetch(OPENROUTER_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://madadgar.local',
-      'X-Title': 'Madadgar',
-    },
-    body: JSON.stringify(body),
+  const response = await ai.models.generateContent({
+    model: GEMINI_MODEL,
+    contents: prompt,
+    ...(json ? { config: { responseMimeType: 'application/json' } } : {}),
   });
-  if (!res.ok) {
-    const errText = await res.text().catch(() => '');
-    throw new Error(`OpenRouter ${res.status}: ${errText.slice(0, 400)}`);
-  }
-  const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content || '';
-  return text;
+  // response.text is a getter in @google/genai; guard for older shapes too.
+  const text =
+    typeof response.text === 'function' ? response.text() : response.text;
+  return text || '';
 }
 
 // Deterministic guardrail: keywords that are unambiguously a home service.
@@ -199,7 +183,7 @@ export class IntentAgent {
         }
       `;
 
-      const responseText = await callOpenRouter(prompt, { json: true });
+      const responseText = await callGemini(prompt, { json: true });
 
       // Robust parse: strip code fences and extract the first JSON object even
       // if the model added prose before/after.
@@ -294,7 +278,7 @@ Reply in 1-2 short sentences:
 - If their message is off-topic or unclear, politely steer them back to home services.`;
       }
 
-      const responseText = await callOpenRouter(prompt);
+      const responseText = await callGemini(prompt);
       return responseText.trim();
     } catch (error) {
       logger.log('Intent Agent', 'Error generating dynamic message', { error: error.message });
