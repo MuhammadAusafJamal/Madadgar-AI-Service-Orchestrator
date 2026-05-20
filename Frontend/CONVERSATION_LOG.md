@@ -59,6 +59,7 @@ own list and only loaded once on mount. Changes on one screen never reached
 others.
 
 **Fix:** Introduced a shared `FavouritesContext` as the single source of truth.
+
 - New `src/context/FavouritesContext.jsx` — holds the favourites list, exposes
   `isFavourite()`, `toggle()` (optimistic, with Firestore rollback) and
   `refresh()`.
@@ -103,12 +104,14 @@ relay** using **Nodemailer** (free tier: 300 emails/day, no credit card, only a
 single verified sender address needed).
 
 **Events covered:**
+
 - Booking created → emails the **taker** (confirmation) and the **provider**
   ("new booking request").
 - Provider accepts → emails the taker.
 - Provider declines → emails the taker.
 
 **Backend (`/Backend`):**
+
 - `utils/email.js` (new) — `sendEmail()` transport over SMTP via Nodemailer.
   Best-effort: never throws; skips cleanly if SMTP vars are unset.
 - `package.json` — added the `nodemailer` dependency.
@@ -117,6 +120,7 @@ single verified sender address needed).
 - `server.js` — registered `app.use('/api/email', emailRoutes)`.
 
 **Frontend (`/Frontend`):**
+
 - `src/api/endpoints/email.js` (new) — `sendBookingEmail({ event, booking })`.
 - `src/services/bookingService.js` — `saveBookingForUser` fires the `created`
   email; `acceptBooking` / `declineBooking` fetch the booking and fire the
@@ -128,6 +132,7 @@ single verified sender address needed).
 
 **Required setup (one-time, by the user):**
 Add to `Backend/.env` (values from Brevo's SMTP settings tab):
+
 ```
 SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
@@ -136,6 +141,7 @@ SMTP_PASS=<Password / SMTP key from Brevo>
 EMAIL_SENDER_NAME=Madadgar
 EMAIL_SENDER_ADDRESS=your-verified-sender@example.com
 ```
+
 Steps: verify a sender email in Brevo under Senders & Domains → copy the SMTP
 server / Port / Login / Password from the SMTP settings tab into the vars above
 → restart the backend. Until SMTP vars are set, sends are skipped (logged) and
@@ -162,6 +168,7 @@ initial requirements ("handle follow-up interactions") was partial — only
 accept/decline status emails existed; no reminders.
 
 **Implemented:**
+
 - Installed `expo-notifications` (SDK 54). Read the v54 docs first (AGENTS.md).
 - `src/services/reminderService.js` (new) — schedules a local appointment
   reminder via `Notifications.scheduleNotificationAsync` (DATE trigger).
@@ -191,6 +198,7 @@ workflow execution." The backend already returned an agent trace (`logs`); the
 frontend discarded it.
 
 **Implemented:**
+
 - `useChat.js` — `buildWorkflowSteps()` authors human-worded steps per turn;
   each assistant message now carries `steps` (friendly) + `trace` (raw backend
   logs).
@@ -207,3 +215,68 @@ frontend discarded it.
 
 **Result:** Challenge 2 Initial Requirement #6 → ✅ Done — Initial Requirements
 now **6 / 6**. `CHALLENGE_2_ANALYSIS.md` updated (overall ~75% → ~78%).
+
+### 8. Provider matching algorithm (rating + proximity)
+
+**Requested:** Rank providers by two weighted criteria — review rating and
+proximity to the user's address — and add realistic lat/lng to the mock data.
+
+**Implementation:**
+
+- `src/services/matchingService.js` (new) — `haversineKm()` great-circle
+  distance, `resolveCoordinates()` (free-text address → lat/lng via an offline
+  Pakistani city/neighbourhood lookup, no geocoding API), and `rankByMatch()`
+  which scores each candidate `0.6 × rating + 0.4 × proximity`
+  (weights in `MATCH_WEIGHTS`). Proximity score is `1 − distance / 25km`,
+  clamped to 0–1; candidates with no coordinates get a neutral 0.5.
+- `src/services/seedService.js` — added realistic `lat`/`lng` to every provider
+  and service (spread across real Karachi / Lahore / Islamabad coordinates).
+- `src/hooks/useChat.js` — `findMatchingServices` now ranks results with
+  `rankByMatch`, using the chat intent's location as the user's address.
+- `src/screens/Chat/ChatScreen.jsx` — suggestion cards now show the distance
+  ("X.X km") so the proximity ranking is visible.
+
+**Action needed:** Tap "Reseed Demo Data" in Profile so the existing
+services/providers in Firestore pick up the new `lat`/`lng` fields.
+
+### 9. ⏳ DEFERRED — Switch the matching system to real data
+
+**Status:** Not started. The user will implement this later and asked to keep
+this reference here. When picking it up, start from this section.
+
+**Goal:** Replace the mocked inputs of the matching algorithm with real data.
+The algorithm itself (`matchingService.js` — `haversineKm`, `rankByMatch`,
+`MATCH_WEIGHTS`) does **not** change. Only three data inputs become real:
+
+1. **Provider / service coordinates** — captured at provider signup instead of
+   hardcoded in `seedService.js`. Options: GPS via `expo-location`
+   ("use my current location"), a `react-native-maps` pin picker, or geocoding
+   the typed address. Store real `lat`/`lng` on the provider/service docs.
+2. **User location** — replace the offline `resolveCoordinates()` lookup table.
+   Options: device GPS via `expo-location` (best, free, no key) for
+   "near me", or geocode a typed address. Keep `resolveCoordinates()` as a
+   fallback when GPS is denied / address unresolved.
+3. **Ratings** — compute `rating` / `reviewCount` from the real `reviews`
+   collection (aggregate on new review via a Cloud Function / backend, or
+   aggregate on read) instead of the static seeded number.
+
+**Cheapest path (no API keys, no cost):** `expo-location` GPS for both provider
+signup and user location + aggregate ratings from existing reviews. A geocoding
+API is only needed if users must type arbitrary addresses.
+
+**Infrastructure if geocoding typed addresses:**
+
+- A geocoding provider — Nominatim/OpenStreetMap (free, no key), or Google /
+  LocationIQ / Geoapify / Mapbox (free tiers, key required).
+- API keys must NOT be in the app — add a backend route
+  `GET /api/geo/geocode?address=...` that calls the provider server-side.
+- `npx expo install expo-location` + location permission strings in `app.json`.
+- At real scale: geohashing (`geofire-common`) for "within X km" Firestore
+  queries — not needed for the hackathon.
+
+**Files that would change:** `ProviderSignupScreen.jsx` (capture coordinates),
+`serviceService.js` `addService` (store lat/lng), `matchingService.js`
+(`resolveCoordinates` → GPS/geocoding, kept as fallback), `useChat.js` + booking
+form (user coords from GPS/geocoded address), `app.json` (permissions); new:
+reviews→rating aggregation, optional `/api/geo/geocode` backend route.
+`seedService.js` stops being the source of coordinates.
